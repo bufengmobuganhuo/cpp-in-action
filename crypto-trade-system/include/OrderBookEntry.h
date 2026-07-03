@@ -33,10 +33,10 @@ public:
         OrderBookType _orderType,
         std::string username = "dataset")
             :price(_price), amount(_amount), timestamp(std::move(_timestamp)),
-             product(std::move(_product)), orderType(_orderType), username(std::move(username))
-    {
+             product(std::move(_product)), orderType(_orderType), username(std::move(username)){};
 
-    }
+    OrderBookEntry(OrderBookEntry&&) = default;
+    OrderBookEntry& operator=(OrderBookEntry&&) = default;
 
     static OrderBookType stringToOrderBookType(std::string& s);
 
