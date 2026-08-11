@@ -1,11 +1,10 @@
-#include <utility>
 
 //
 // Created by yuzhang on 2026/6/30.
 //
-
 #ifndef CRYPTO_TRADE_SYSTEM_ORDERBOOKENTRY_H
 #define CRYPTO_TRADE_SYSTEM_ORDERBOOKENTRY_H
+#include <string>
 
 enum class OrderBookType
 {
@@ -38,7 +37,11 @@ public:
     OrderBookEntry(OrderBookEntry&&) = default;
     OrderBookEntry& operator=(OrderBookEntry&&) = default;
 
-    static OrderBookType stringToOrderBookType(std::string& s);
+    OrderBookEntry(const OrderBookEntry&) = default;
+
+    OrderBookEntry& operator=(const OrderBookEntry&) = default;
+
+    static OrderBookType stringToOrderBookType(const std::string& s);
 
     static bool compareByTimestamp(OrderBookEntry& e1, OrderBookEntry& e2)
     {
@@ -52,7 +55,7 @@ public:
 
     static bool compareByPriceDesc(OrderBookEntry& e1, OrderBookEntry& e2)
     {
-        return e2.price < e2.price;
+        return e2.price < e1.price;
     }
 };
 #endif //CRYPTO_TRADE_SYSTEM_ORDERBOOKENTRY_H

@@ -1,3 +1,10 @@
+# JetBrains IDE
+.idea/
+*.iml
+
+# CLion build directories
+cmake-build-*/
+
 # Prerequisites
 *.d
 
@@ -22,7 +29,6 @@
 *.dylib
 *.dll
 *.so.*
-
 
 # Fortran module files
 *.mod

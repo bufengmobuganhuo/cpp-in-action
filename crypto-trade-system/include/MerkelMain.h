@@ -22,7 +22,7 @@ private:
     void enterBid();
     void printWallet();
     void gotoNextTimeframe();
-    int getUserOperation();
+    static int getUserOperation();
     void processUserOperation(int userOption);
 
     std::string currentTime;

@@ -63,8 +63,6 @@ void MerkelMain::printMarketStats()
         std::cout << "Max ask: " << OrderBook::getHighPrice(entries) << std::endl;
         std::cout << "Min ask: " << OrderBook::getLowPrice(entries) << std::endl;
 
-
-
     }
 }
 
@@ -140,6 +138,7 @@ void MerkelMain::enterBid()
 
 void MerkelMain::printWallet()
 {
+    std::cout << wallet.toString() << std::endl;
 }
 
 void MerkelMain::gotoNextTimeframe()

@@ -12,4 +12,6 @@ add_executable(crypto_trade_system src/main.cpp
         include/OrderBook.h
         src/MerkelMain.cpp
         src/CSVReader.cpp
+        src/OrderBookEntry.cpp
+        src/OrderBook.cpp
 )

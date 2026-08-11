@@ -12,7 +12,7 @@ CSVReader::CSVReader()
 {
 }
 
-std::vector<OrderBookEntry> CSVReader::readCSV(std::string& csvFilename)
+std::vector<OrderBookEntry> CSVReader::readCSV(const std::string& csvFilename)
 {
     std::vector<OrderBookEntry> entries;
 
@@ -51,7 +51,7 @@ std::vector<std::string> CSVReader::tokenise(std::string& csvLine, char separato
         {
             break;
         }
-        if (end >= 0)
+        if (end > 0)
         {
             token = csvLine.substr(start, end - start);
         }
@@ -67,12 +67,46 @@ std::vector<std::string> CSVReader::tokenise(std::string& csvLine, char separato
     return tokens;
 }
 
-OrderBookEntry CSVReader::stringsToOBE(std::string& price, std::string amount, std::string timestamp,
+OrderBookEntry CSVReader::stringsToOBE(std::string& priceStr, const std::string& amountStr, std::string timestamp,
                                        std::string product, OrderBookType orderBookType)
 {
-
+    double price, amount;
+    try
+    {
+        price = std::stod(priceStr);
+        amount = std::stod(amountStr);
+    }
+    catch (const std::exception& e)
+    {
+        std::cout << "CSVReader::stringsToOBE Bad float! " << priceStr << std::endl;
+        std::cout << "CSVReader::stringToOBE Bad float! " << amount << std::endl;
+        throw;
+    }
+    OrderBookEntry obe(price, amount, timestamp, product, orderBookType);
+    return obe;
 }
 
-OrderBookEntry CSVReader::stringsToOBE(const std::vector<std::string>& strings)
+OrderBookEntry CSVReader::stringsToOBE(const std::vector<std::string>& tokens)
 {
+    double price, amount;
+
+    if (tokens.size() != 5)
+    {
+        std::cout << "Bad line " << std::endl;
+        throw std::exception{};
+    }
+    try
+    {
+        price = std::stod(tokens[3]);
+        amount = std::stod(tokens[4]);
+    }
+    catch (const std::exception& e)
+    {
+        std::cout << "CSVReader::stringsTOBE Bad float! " << tokens[3] << std::endl;
+        std::cout << "CSVReader::stringsTOBE Bad float! " << tokens[4] << std::endl;
+        throw;
+    }
+
+    OrderBookEntry obe(price, amount, tokens[0], tokens[1], OrderBookEntry::stringToOrderBookType(tokens[2]));
+    return obe;
 }
