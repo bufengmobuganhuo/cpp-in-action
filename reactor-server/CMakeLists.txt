@@ -8,5 +8,9 @@ set(CMAKE_CXX_COMPILER /usr/bin/g++)
 add_subdirectory(demo/select_demo)
 add_subdirectory(demo/poll_demo)
 add_subdirectory(demo/epoll_demo)
-add_executable(netserver Server.cpp)
-add_executable(netclient Client.cpp)
+add_executable(netserver Server.cpp
+        InetAddress.cpp
+        include/InetAddress.h)
+add_executable(netclient Client.cpp
+        InetAddress.cpp
+        include/InetAddress.h)

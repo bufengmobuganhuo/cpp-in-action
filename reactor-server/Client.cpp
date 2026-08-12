@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/select.h>
+#include "include/InetAddress.h"
 
 constexpr int kBufferSize = 1024;
 
@@ -17,6 +18,7 @@ int main(int argc, char* argv[])
     struct sockaddr_in serv_addr{};
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(atoi(argv[2]));
+    
     inet_pton(AF_INET, argv[1], &serv_addr.sin_addr);
 
     // 等待1秒，确保服务端已经启动并开始listen

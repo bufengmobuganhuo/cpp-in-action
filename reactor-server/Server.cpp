@@ -14,7 +14,8 @@
 #include <arpa/inet.h>
 #include <sys/fcntl.h>
 #include <sys/epoll.h>
-#include <netinet/tcp.h>      // TCP_NODELAY需要包含这个头文件。
+#include <netinet/tcp.h>
+#include "include/InetAddress.h"
 
 // epoll_wait每次最多返回的就绪事件数
 constexpr int kMaxEvents = 1024;
@@ -41,14 +42,9 @@ int main(int argc, char* argv[])
     // 开启 TCP 保活机制 (Keep-Alive)，定期发送探测包以检测连接是否仍然存活
     setsockopt(server_socket_fd, SOL_SOCKET, SO_KEEPALIVE, &opt, sizeof opt);
 
-    struct sockaddr_in serv_addr{};
-    serv_addr.sin_family = AF_INET;
-    // 服务端监听的IP地址
-    serv_addr.sin_addr.s_addr = inet_addr(argv[1]);
-    // 服务端监听的端口
-    serv_addr.sin_port = htons(atoi(argv[2]));
+    InetAddress serv_addr(argv[1], atoi(argv[2]));
 
-    if (bind(server_socket_fd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
+    if (bind(server_socket_fd, serv_addr.addr(), sizeof(sockaddr)) < 0)
     {
         perror("[Server] bind failed");
         close(server_socket_fd);
@@ -127,54 +123,60 @@ int main(int argc, char* argv[])
                 std::cout << "[Server] event_fd=" << current_fd << "is closed" << std::endl;
                 close(current_fd);
             }
-            // 处理新连接
-            else if (current_fd == server_socket_fd)
-            {
-                struct sockaddr_in client_addr{};
-                socklen_t addr_len = sizeof(client_addr);
-                int new_socket = accept4(server_socket_fd, (struct sockaddr*)&client_addr, &addr_len, SOCK_NONBLOCK);
-                if (new_socket >= 0)
-                {
-                    std::cout << "[EpollServer] New connection, fd: " << new_socket << std::endl;
-
-                    struct epoll_event client_event{};
-                    client_event.events = EPOLLIN;
-                    client_event.data.fd = new_socket;
-                    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_socket, &client_event);
-                }
-            }
             else if (current_event.events & (EPOLLIN | EPOLLPRI))
             {
-                // 客户端有数据可读，要一直读完为止
-                // 处理客户端数据
-                char buffer[kBufferSize] = {0};
-                while (true)
+                // 处理新连接
+                if (current_fd == server_socket_fd)
                 {
-                    // 清理buffer
-                    bzero(&buffer, sizeof(buffer));
-                    int bytes_read = read(current_fd, buffer, kBufferSize - 1);
-                    if (bytes_read > 0)
+                    struct sockaddr_in peer_addr{};
+                    socklen_t addr_len = sizeof(peer_addr);
+                    int new_socket = accept4(server_socket_fd, (struct sockaddr*)&peer_addr, &addr_len,
+                                             SOCK_NONBLOCK);
+
+                    InetAddress client_addr(peer_addr);
+                    if (new_socket >= 0)
                     {
-                        buffer[bytes_read] = '\0';
-                        std::cout << "[EpollServer] Received: " << buffer << std::endl;
-                        send(current_fd, buffer, bytes_read, 0);
+                        printf("[Server] New connection, fd: %d, ip: %s, port: %d\n", new_socket, client_addr.ip(), client_addr.port());
+
+                        struct epoll_event client_event{};
+                        client_event.events = EPOLLIN;
+                        client_event.data.fd = new_socket;
+                        epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_socket, &client_event);
                     }
-                    else if (bytes_read == 0)
+                }
+                else
+                {
+                    // 客户端有数据可读，要一直读完为止
+                    // 处理客户端数据
+                    char buffer[kBufferSize] = {0};
+                    while (true)
                     {
-                        // 客户端连接已断开
-                        std::cout << "[Server] Client disconnected, fd: " << current_fd << std::endl;
-                        close(current_fd);
-                        break;
-                    }
-                    else if (bytes_read == -1 && errno == EINTR)
-                    {
-                        // 读取数据的时候被信号中断，继续读取
-                        continue;
-                    }
-                    else if (bytes_read == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
-                    {
-                        // 全部数据已读取完毕
-                        break;
+                        // 清理buffer
+                        bzero(&buffer, sizeof(buffer));
+                        int bytes_read = read(current_fd, buffer, kBufferSize - 1);
+                        if (bytes_read > 0)
+                        {
+                            buffer[bytes_read] = '\0';
+                            std::cout << "[EpollServer] Received: " << buffer << std::endl;
+                            send(current_fd, buffer, bytes_read, 0);
+                        }
+                        else if (bytes_read == 0)
+                        {
+                            // 客户端连接已断开
+                            std::cout << "[Server] Client disconnected, fd: " << current_fd << std::endl;
+                            close(current_fd);
+                            break;
+                        }
+                        else if (bytes_read == -1 && errno == EINTR)
+                        {
+                            // 读取数据的时候被信号中断，继续读取
+                            continue;
+                        }
+                        else if (bytes_read == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+                        {
+                            // 全部数据已读取完毕
+                            break;
+                        }
                     }
                 }
             }
@@ -185,7 +187,8 @@ int main(int argc, char* argv[])
             else
             {
                 // 其他事件都认为是错误
-                std::cout << "[Server] unknow event: " << current_event.events << "for client: " << current_event.data.
+                std::cout << "[Server] unknow event: " << current_event.events << "for client: " << current_event.
+                    data.
                     fd << std::endl;
                 close(current_fd);
             }
