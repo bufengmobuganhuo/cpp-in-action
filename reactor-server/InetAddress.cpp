@@ -4,22 +4,10 @@
 
 #include "./include/InetAddress.h"
 
-/*
-class InetAddress
+InetAddress::InetAddress()
 {
-private:
-    sockaddr_in addr_;
-public:
-    InetAddress(const std::string &ip, uint16_t port);
-    InetAddress(const sockaddr_in addr): addr_(addr){};
-    ~InetAddress();
 
-    const char* ip() const; // 返回字符串表示的地址
-    uint16_t port() const; // 返回整数表示的端口
-    const sockaddr* addr() const; // 返回addr_成员的地址
-
-};
-*/
+}
 
 InetAddress::InetAddress(const std::string& ip, uint16_t port)
 {
@@ -52,4 +40,9 @@ uint16_t InetAddress::port() const
 const sockaddr* InetAddress::addr() const
 {
     return (sockaddr*) &addr_;
+}
+
+void InetAddress::setAddr(sockaddr_in client_addr)
+{
+    addr_ = client_addr;
 }

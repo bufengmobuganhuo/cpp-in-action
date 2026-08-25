@@ -10,7 +10,15 @@ add_subdirectory(demo/poll_demo)
 add_subdirectory(demo/epoll_demo)
 add_executable(netserver Server.cpp
         InetAddress.cpp
-        include/InetAddress.h)
+        include/InetAddress.h
+        Socket.cpp
+        include/Socket.h
+        include/Epoll.h
+        Epoll.cpp
+        include/Channel.h
+        Channel.cpp)
 add_executable(netclient Client.cpp
         InetAddress.cpp
-        include/InetAddress.h)
+        include/InetAddress.h
+        Socket.cpp
+        include/Socket.h)
