@@ -4,6 +4,7 @@
 #include "include/Channel.h"
 
 #include <iostream>
+#include <utility>
 #include <strings.h>
 #include <unistd.h>
 
@@ -12,7 +13,7 @@
 #include "include/InetAddress.h"
 #include "include/Socket.h"
 
-Channel::Channel(EventLoop* event_loop, int fd) : eventLoop_(event_loop), fd_(fd)
+Channel::Channel(EventLoop* event_loop, int fd) : event_loop_(event_loop), fd_(fd)
 {
 }
 
@@ -24,30 +25,30 @@ int Channel::fd() const
     return fd_;
 }
 
-void Channel::useET()
+void Channel::use_et()
 {
     events_ = events_ | EPOLLET;
 }
 
-void Channel::enableReading()
+void Channel::enable_reading()
 {
     events_ = events_ | EPOLLIN;
-    eventLoop_->updateChannel(this);
+    event_loop_->update_channel(this);
 }
 
-void Channel::setInEpoll()
+void Channel::set_in_epoll()
 {
-    inEpoll_ = true;
+    in_epoll_ = true;
 }
 
-void Channel::setReadyEvent(uint32_t event)
+void Channel::set_ready_event(uint32_t event)
 {
-    readyEvents_ = event;
+    ready_events_ = event;
 }
 
-bool Channel::inEpoll() const
+bool Channel::in_epoll() const
 {
-    return inEpoll_;
+    return in_epoll_;
 }
 
 uint32_t Channel::events() const
@@ -55,20 +56,20 @@ uint32_t Channel::events() const
     return events_;
 }
 
-uint32_t Channel::readyEvents() const
+uint32_t Channel::ready_events() const
 {
-    return readyEvents_;
+    return ready_events_;
 }
 
-void Channel::handleEvent()
+void Channel::handle_event()
 {
     if (events_ & EPOLLRDHUP)
     {
-
+        close_callback_();
     }
     else if (events_ & (EPOLLIN | EPOLLPRI))
     {
-        readCallback_();
+        read_callback_();
     }
     else if (events_ & EPOLLOUT)
     {
@@ -76,20 +77,20 @@ void Channel::handleEvent()
     }
     else
     {
-
+        error_callback_();
     }
 }
 
-void Channel::onMessage() const
+void Channel::on_message() const
 {
     // 客户端有数据可读，要一直读完为止
     // 处理客户端数据
-    char buffer[kBufferSize] = {0};
+    char buffer[k_buffer_size] = {0};
     while (true)
     {
         // 清理buffer
         bzero(&buffer, sizeof(buffer));
-        int bytes_read = read(fd_, buffer, kBufferSize - 1);
+        int bytes_read = read(fd_, buffer, k_buffer_size - 1);
         if (bytes_read > 0)
         {
             buffer[bytes_read] = '\0';
@@ -116,7 +117,17 @@ void Channel::onMessage() const
     }
 }
 
-void Channel::setReadCallback(std::function<void()> readCallback)
+void Channel::set_read_callback(std::function<void()> read_callback)
 {
-    readCallback_ = readCallback;
+    read_callback_ = std::move(read_callback);
+}
+
+void Channel::set_close_callback(std::function<void()> fn)
+{
+    close_callback_ = std::move(fn);
+}
+
+void Channel::set_error_callback(std::function<void()> fn)
+{
+    error_callback_ = std::move(fn);
 }

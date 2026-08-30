@@ -8,7 +8,7 @@
 #include <sys/select.h>
 #include "include/InetAddress.h"
 
-constexpr int kBufferSize = 1024;
+constexpr int k_buffer_size = 1024;
 
 int main(int argc, char* argv[])
 {
@@ -31,12 +31,12 @@ int main(int argc, char* argv[])
     }
     std::cout << "[Client] Connected to server." << std::endl;
 
-    char buffer[kBufferSize] = {0};
+    char buffer[k_buffer_size] = {0};
     while (true)
     {
         // 从标准输入获取用户消息
         std::cout << "[Client] Enter message: ";
-        std::cin.getline(buffer, kBufferSize);
+        std::cin.getline(buffer, k_buffer_size);
         send(sock, buffer, strlen(buffer), 0);
 
         // 使用select实现带超时的非阻塞读取
@@ -53,8 +53,8 @@ int main(int argc, char* argv[])
         if (activity > 0 && FD_ISSET(sock, &readfds))
         {
             // 清空buffer
-            memset(buffer, 0, kBufferSize);
-            int bytes_read = read(sock, buffer, kBufferSize);
+            memset(buffer, 0, k_buffer_size);
+            int bytes_read = read(sock, buffer, k_buffer_size);
             if (bytes_read > 0)
             {
                 std::cout << "[Client] Server replay: " << buffer << std::endl;

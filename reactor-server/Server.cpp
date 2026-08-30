@@ -9,6 +9,6 @@
 
 int main(int argc, char* argv[])
 {
-    TcpServer tcpServer(argv[1], atoi(argv[2]));
-    tcpServer.start();
+    TcpServer tcp_server(argv[1], atoi(argv[2]));
+    tcp_server.start();
 }

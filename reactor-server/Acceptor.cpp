@@ -13,44 +13,44 @@
 #include "include/InetAddress.h"
 #include "include/Socket.h"
 
-Acceptor::Acceptor(EventLoop* eventLoop_, const std::string& ip, uint16_t port): eventLoop_(eventLoop_)
+Acceptor::Acceptor(EventLoop* event_loop, const std::string& ip, uint16_t port): event_loop_(event_loop)
 {
     // 创建服务端用于监听的server_socket_fd
-    servSocket_ = new Socket(createNonBlocking());
+    serv_socket_ = new Socket(create_non_blocking());
     // 设置fd的属性
-    servSocket_->setReuseAddr(true);
-    servSocket_->setReusePort(true);
-    servSocket_->setTcpNoDelay(true);
-    servSocket_->setKeepAlive(true);
+    serv_socket_->set_reuse_addr(true);
+    serv_socket_->set_reuse_port(true);
+    serv_socket_->set_tcp_no_delay(true);
+    serv_socket_->set_keep_alive(true);
 
     InetAddress serv_addr(ip, port);
 
-    servSocket_->bind(serv_addr);
-    servSocket_->listen();
+    serv_socket_->bind(serv_addr);
+    serv_socket_->listen();
 
     std::cout << "[Server] Listening on " << ip << ":" << port << std::endl;
 
-    acceptChannel_ = new Channel(eventLoop_, servSocket_->fd());
+    accept_channel_ = new Channel(event_loop_, serv_socket_->fd());
     // 绑定处理读事件的回调函数
-    acceptChannel_->setReadCallback(std::bind(&Acceptor::newConnection, this));
-    acceptChannel_->enableReading();
+    accept_channel_->set_read_callback(std::bind(&Acceptor::new_connection, this));
+    accept_channel_->enable_reading();
 }
 
 Acceptor::~Acceptor()
 {
-    delete servSocket_;
-    delete acceptChannel_;
+    delete serv_socket_;
+    delete accept_channel_;
 }
 
-void Acceptor::newConnection() const
+void Acceptor::new_connection() const
 {
     InetAddress client_addr;
-    auto* client_socket = new Socket(servSocket_->accept(client_addr), client_addr.ip(), client_addr.port());
-    newConnectionFunc_(client_socket);
+    auto* client_socket = new Socket(serv_socket_->accept(client_addr), client_addr.ip(), client_addr.port());
+    new_connection_func_(client_socket);
 
 }
 
-void Acceptor::setNewConnectionFunc(std::function<void(Socket*)> fn)
+void Acceptor::set_new_connection_func(std::function<void(Socket*)> fn)
 {
-    newConnectionFunc_ = fn;
+    new_connection_func_ = fn;
 }

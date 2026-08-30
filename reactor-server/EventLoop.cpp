@@ -24,12 +24,12 @@ void EventLoop::run()
         // 【核心区别】与其他的核心区别，只遍历就绪的事件
         for (auto channel : ready_channels)
         {
-            channel->handleEvent();
+            channel->handle_event();
         }
     }
 }
 
-void EventLoop::updateChannel(Channel* ch)
+void EventLoop::update_channel(Channel* ch)
 {
-    epoll_->updateChannel(ch);
+    epoll_->update_channel(ch);
 }

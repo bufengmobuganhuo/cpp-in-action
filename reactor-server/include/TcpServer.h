@@ -16,15 +16,16 @@ class Connection;
 class TcpServer
 {
 private:
-    EventLoop* eventLoop_;
+    EventLoop* event_loop_;
     Acceptor* acceptor_;
     std::map<int, Connection*> conns_; // <fd, connection>
 public:
     TcpServer(const std::string& ip, uint16_t port);
     ~TcpServer();
     void start(); // 开启服务器
-    void newConnection(Socket* client_socket); // 创建Connection
-    void onDisconnect(int fd);
+    void new_connection(Socket* client_socket); // 创建Connection
+    void on_disconnect(Connection* conn);
+    void on_error(Connection* conn);
 };
 
 #endif //REACTOR_SERVER_TCPSERVER_H

@@ -10,7 +10,7 @@
 
 class InetAddress;
 
-int createNonBlocking();
+int create_non_blocking();
 
 class Socket
 {
@@ -26,10 +26,10 @@ public:
     int fd() const;
     std::string ip() const;
     uint16_t port() const;
-    void setReuseAddr(bool on) const; // 设置SO_REUSEADDR选项
-    void setReusePort(bool on) const; // 设置SO_REUSEPORT选项
-    void setTcpNoDelay(bool on) const; // 设置TCP_NODELAY选项
-    void setKeepAlive(bool on) const; // 设置SO_KEEPALIVE选项
+    void set_reuse_addr(bool on) const; // 设置SO_REUSEADDR选项
+    void set_reuse_port(bool on) const; // 设置SO_REUSEPORT选项
+    void set_tcp_no_delay(bool on) const; // 设置TCP_NODELAY选项
+    void set_keep_alive(bool on) const; // 设置SO_KEEPALIVE选项
     void bind(const InetAddress& serv_addr); // 绑定IP和端口号
     void listen(int nn=128) const; // 服务端开启监听
     int accept(InetAddress& client_addr); // 接受客户端连接请求

@@ -42,7 +42,7 @@ const sockaddr* InetAddress::addr() const
     return (sockaddr*) &addr_;
 }
 
-void InetAddress::setAddr(sockaddr_in client_addr)
+void InetAddress::set_addr(sockaddr_in client_addr)
 {
     addr_ = client_addr;
 }

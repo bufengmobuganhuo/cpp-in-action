@@ -12,7 +12,7 @@
 
 #include "include/InetAddress.h"
 
-int createNonBlocking()
+int create_non_blocking()
 {
     int client_fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP);
     if (client_fd < 0)
@@ -49,25 +49,25 @@ uint16_t Socket::port() const
     return port_;
 }
 
-void Socket::setReuseAddr(bool on) const
+void Socket::set_reuse_addr(bool on) const
 {
     int opt = on ? 1 : 0;
     setsockopt(fd_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
 }
 
-void Socket::setReusePort(bool on) const
+void Socket::set_reuse_port(bool on) const
 {
     int opt = on ? 1 : 0;
     setsockopt(fd_, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof opt);
 }
 
-void Socket::setTcpNoDelay(bool on) const
+void Socket::set_tcp_no_delay(bool on) const
 {
     int opt = on ? 1: 0;
     setsockopt(fd_, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof opt);
 }
 
-void Socket::setKeepAlive(bool on) const
+void Socket::set_keep_alive(bool on) const
 {
     int opt = on ? 1: 0;
     setsockopt(fd_, SOL_SOCKET, SO_KEEPALIVE, &opt, sizeof opt);
@@ -104,6 +104,6 @@ int Socket::accept(InetAddress& client_addr)
     socklen_t addr_len = sizeof(peer_addr);
     int new_socket = accept4(fd_, (struct sockaddr*)&peer_addr, &addr_len,
                              SOCK_NONBLOCK);
-    client_addr.setAddr(peer_addr);
+    client_addr.set_addr(peer_addr);
     return new_socket;
 }

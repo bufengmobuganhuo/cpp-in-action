@@ -10,18 +10,18 @@
 
 class Channel;
 
-constexpr int kMaxEvents = 100;
+constexpr int k_max_events = 100;
 
 class Epoll
 {
 private:
-    int epollfd_ = -1;
-    epoll_event readyEvents_[kMaxEvents]{}; // 存储epoll_wait()返回的事件
+    int epoll_fd_ = -1;
+    epoll_event ready_events_[k_max_events]{}; // 存储epoll_wait()返回的事件
 public:
     Epoll();
     ~Epoll();
 
-    void updateChannel(Channel *channel) const; // 把Channel添加/更新到Epoll实例
+    void update_channel(Channel *channel) const; // 把Channel添加/更新到Epoll实例
     std::vector<Channel*> loop(int timeout= -1); // 运行epoll_wait()，等待就绪的事件
 };
 
