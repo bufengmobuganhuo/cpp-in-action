@@ -4,9 +4,13 @@
 
 #include "include/Socket.h"
 
+#include <cstdlib>
 #include <unistd.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 #include <netinet/tcp.h>
+
+#include "include/InetAddress.h"
 
 int createNonBlocking()
 {
@@ -19,7 +23,10 @@ int createNonBlocking()
     return client_fd;
 }
 
-Socket::Socket(int fd): fd_(fd)
+Socket::Socket(int fd): fd_(fd), port_(0)
+{}
+
+Socket::Socket(int fd, const std::string& ip, uint16_t port): fd_(fd), ip_(ip), port_(port)
 {}
 
 Socket::~Socket()
@@ -30,6 +37,16 @@ Socket::~Socket()
 int Socket::fd() const
 {
     return fd_;
+}
+
+std::string Socket::ip() const
+{
+    return ip_;
+}
+
+uint16_t Socket::port() const
+{
+    return port_;
 }
 
 void Socket::setReuseAddr(bool on) const
@@ -56,14 +73,16 @@ void Socket::setKeepAlive(bool on) const
     setsockopt(fd_, SOL_SOCKET, SO_KEEPALIVE, &opt, sizeof opt);
 }
 
-void Socket::bind(const InetAddress& serv_addr) const
+void Socket::bind(const InetAddress& serv_addr)
 {
-    if (::bind(fd_, serv_addr.addr(), sizeof(sockaddr)) < 0)
+    if (::bind(fd_, serv_addr.addr(), sizeof(sockaddr_in)) < 0)
     {
         perror("[Server] bind failed");
         close(fd_);
         exit(-1);
     }
+    ip_ = serv_addr.ip();
+    port_= serv_addr.port();
 }
 
 void Socket::listen(int nn) const
@@ -79,7 +98,7 @@ void Socket::listen(int nn) const
     }
 }
 
-int Socket::accept(InetAddress& client_addr) const
+int Socket::accept(InetAddress& client_addr)
 {
     struct sockaddr_in peer_addr{};
     socklen_t addr_len = sizeof(peer_addr);

@@ -16,7 +16,15 @@ add_executable(netserver Server.cpp
         include/Epoll.h
         Epoll.cpp
         include/Channel.h
-        Channel.cpp)
+        Channel.cpp
+        include/EventLoop.h
+        EventLoop.cpp
+        include/TcpServer.h
+        TcpServer.cpp
+        include/Acceptor.h
+        Acceptor.cpp
+        include/Connection.h
+        Connection.cpp)
 add_executable(netclient Client.cpp
         InetAddress.cpp
         include/InetAddress.h

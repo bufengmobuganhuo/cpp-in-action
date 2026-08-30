@@ -14,7 +14,7 @@
 
 Epoll::Epoll()
 {
-    epollfd_ = epoll_create(1);
+    epollfd_ = epoll_create1(0);
     if (epollfd_ < 0)
     {
         perror("[Server] epoll_create failed");
@@ -43,7 +43,7 @@ void Epoll::updateChannel(Channel* channel) const
         // 参数 4: &server_event - 指向 epoll_event 结构体的指针，指定了要监听的事件类型（如 EPOLLIN）及关联的用户数据（如 data.fd）
         if (epoll_ctl(epollfd_, EPOLL_CTL_MOD, channel->fd(), &ev) < 0)
         {
-            perror("[EpollServer] epoll_ctl ADD server failed");
+            perror("[EpollServer] epoll_ctl MOD server failed");
             close(channel->fd());
             close(epollfd_);
             exit(-1);
@@ -81,6 +81,5 @@ std::vector<Channel*> Epoll::loop(int timeout)
         channel->setReadyEvent(readyEvents_[i].events);
         channels.push_back(channel);
     }
-
     return channels; // 返回就绪的事件
 }

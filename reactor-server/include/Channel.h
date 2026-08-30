@@ -5,41 +5,29 @@
 #ifndef REACTOR_SERVER_CHANNEL_H
 #define REACTOR_SERVER_CHANNEL_H
 
-#include <complex>
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <cstring>
-#include <cerrno>
-#include <iostream>
-#include <vector>
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <arpa/inet.h>
-#include <sys/fcntl.h>
-#include <sys/epoll.h>
-#include <netinet/tcp.h>
-#include <sys/epoll.h>
-#include "include/Socket.h"
-#include "include/InetAddress.h"
-#include "include/Epoll.h"
+#include <functional>
 
 // epoll_wait每次最多返回的就绪事件数
 constexpr int kBufferSize = 1024;
 
-class Epoll;
+class EventLoop;
+class Socket;
+class InetAddress;
 
 class Channel
 {
 private:
     int fd_ = -1; // channel和fd一一对应
-    Epoll* ep_ = nullptr; // Channel对应的Epoll实例，二者同样一一对应
+    EventLoop* eventLoop_ = nullptr; // Channel对应的Epoll实例，二者同样一一对应
     bool inEpoll_ = false; // Channel是否已添加到Epoll实例，如果未添加，调用epoll_ctl()时使用ADD指令，否则用MOD指令
     uint32_t events_ = 0; // fd_需要监视的事件，serv_fd/client_fd需要监听EPOLLIN事件，client_fd还需要监听EPOLLOUT事件
     uint32_t readyEvents_ = 0; // 已经就绪的事件
-    bool isListen = false; // 是否为监听者
+    std::function<void()> readCallback_; // fd_读事件的回调函数
+    std::function<void()> closeCallback_; // 连接关闭的回调
+    std::function<void()> errorCallback_;
 public:
-    Channel(Epoll* epoll, int fd, bool isListen);
+    Channel(EventLoop* epoll, int fd);
     ~Channel();
 
     int fd() const;
@@ -51,7 +39,10 @@ public:
     uint32_t events() const; // 要监听的事件
     uint32_t readyEvents() const; // 已就绪事件
 
-    void handleEvent(Socket& serv_socket); // 处理已就绪事件
+    void handleEvent(); // 处理已就绪事件
+
+    void onMessage() const; // 处理对端发送过来的消息
+    void setReadCallback(std::function<void()> readCallback); // 设置回调函数
 };
 
 #endif //REACTOR_SERVER_CHANNEL_H
