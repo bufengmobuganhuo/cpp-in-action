@@ -81,8 +81,7 @@ void Socket::bind(const InetAddress& serv_addr)
         close(fd_);
         exit(-1);
     }
-    ip_ = serv_addr.ip();
-    port_= serv_addr.port();
+    set_addr(serv_addr.ip(), serv_addr.port());
 }
 
 void Socket::listen(int nn) const
@@ -106,4 +105,10 @@ int Socket::accept(InetAddress& client_addr)
                              SOCK_NONBLOCK);
     client_addr.set_addr(peer_addr);
     return new_socket;
+}
+
+void Socket::set_addr(const std::string& ip, uint16_t port)
+{
+    ip_ = ip;
+    port_ = port;
 }

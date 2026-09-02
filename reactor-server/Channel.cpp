@@ -36,6 +36,24 @@ void Channel::enable_reading()
     event_loop_->update_channel(this);
 }
 
+void Channel::disable_reading()
+{
+    events_ &= ~EPOLLIN;
+    event_loop_->update_channel(this);
+}
+
+void Channel::enable_writing()
+{
+    events_ |= EPOLLOUT;
+    event_loop_->update_channel(this);
+}
+
+void Channel::disable_writing()
+{
+    events_ &= ~EPOLLOUT;
+    event_loop_->update_channel(this);
+}
+
 void Channel::set_in_epoll()
 {
     in_epoll_ = true;
@@ -63,57 +81,22 @@ uint32_t Channel::ready_events() const
 
 void Channel::handle_event()
 {
-    if (events_ & EPOLLRDHUP)
+    if (ready_events_ & EPOLLRDHUP)
     {
-        close_callback_();
+        disconnect_callback_();
     }
-    else if (events_ & (EPOLLIN | EPOLLPRI))
+    else if (ready_events_ & (EPOLLIN | EPOLLPRI))
     {
         read_callback_();
     }
-    else if (events_ & EPOLLOUT)
+    else if (ready_events_ & EPOLLOUT)
     {
         // 写事件准备好
+        write_callback_();
     }
     else
     {
         error_callback_();
-    }
-}
-
-void Channel::on_message() const
-{
-    // 客户端有数据可读，要一直读完为止
-    // 处理客户端数据
-    char buffer[k_buffer_size] = {0};
-    while (true)
-    {
-        // 清理buffer
-        bzero(&buffer, sizeof(buffer));
-        int bytes_read = read(fd_, buffer, k_buffer_size - 1);
-        if (bytes_read > 0)
-        {
-            buffer[bytes_read] = '\0';
-            std::cout << "[EpollServer] Received: " << buffer << std::endl;
-            send(fd_, buffer, bytes_read, 0);
-        }
-        else if (bytes_read == 0)
-        {
-            // 客户端连接已断开
-            std::cout << "[Server] Client disconnected, fd: " << fd_ << std::endl;
-            close(fd_);
-            break;
-        }
-        else if (bytes_read == -1 && errno == EINTR)
-        {
-            // 读取数据的时候被信号中断，继续读取
-            continue;
-        }
-        else if (bytes_read == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
-        {
-            // 全部数据已读取完毕
-            break;
-        }
     }
 }
 
@@ -122,9 +105,14 @@ void Channel::set_read_callback(std::function<void()> read_callback)
     read_callback_ = std::move(read_callback);
 }
 
+void Channel::set_write_callback(std::function<void()> write_callback)
+{
+    write_callback_ = write_callback;
+}
+
 void Channel::set_close_callback(std::function<void()> fn)
 {
-    close_callback_ = std::move(fn);
+    disconnect_callback_ = std::move(fn);
 }
 
 void Channel::set_error_callback(std::function<void()> fn)

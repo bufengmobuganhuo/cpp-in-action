@@ -24,7 +24,11 @@ add_executable(netserver Server.cpp
         include/Acceptor.h
         Acceptor.cpp
         include/Connection.h
-        Connection.cpp)
+        Connection.cpp
+        Buffer.cpp
+        include/Buffer.h
+        service/EchoServer.cpp
+        service/EchoServer.h)
 add_executable(netclient Client.cpp
         InetAddress.cpp
         include/InetAddress.h

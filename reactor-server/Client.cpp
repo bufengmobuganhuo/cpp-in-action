@@ -32,43 +32,28 @@ int main(int argc, char* argv[])
     std::cout << "[Client] Connected to server." << std::endl;
 
     char buffer[k_buffer_size] = {0};
-    while (true)
+    for (int i = 0; i < 100; i++)
     {
-        // 从标准输入获取用户消息
-        std::cout << "[Client] Enter message: ";
-        std::cin.getline(buffer, k_buffer_size);
-        send(sock, buffer, strlen(buffer), 0);
+        memset(buffer, 0, sizeof buffer); // 把buffer内容置空
+        sprintf(buffer, "这是第%d个超级女声", i);
 
-        // 使用select实现带超时的非阻塞读取
-        fd_set readfds;
-        FD_ZERO(&readfds);
-        FD_SET(sock, &readfds);
+        char tmp_buffer[1024]; // 消息长度 + 报文内容
+        memset(tmp_buffer, 0, sizeof tmp_buffer);
+        int len = strlen(buffer); // 记录消息的长度
+        memcpy(tmp_buffer, &len, 4); // 消息长度
+        memcpy(tmp_buffer + 4, buffer, len); // 报文内容
 
-        // 设置2秒超时
-        struct timeval timeout = {2, 0};
+        send(sock, tmp_buffer, len + 4, 0);
+    }
 
-        // 等待服务器回复，socket + 1 是因为服务端只有一个socket
-        int activity = select(sock + 1, &readfds, NULL, NULL, &timeout);
+    for (int i = 0; i < 100; i++)
+    {
+        int len;
+        recv(sock, &len, 4, 0); // 读取报文长度
 
-        if (activity > 0 && FD_ISSET(sock, &readfds))
-        {
-            // 清空buffer
-            memset(buffer, 0, k_buffer_size);
-            int bytes_read = read(sock, buffer, k_buffer_size);
-            if (bytes_read > 0)
-            {
-                std::cout << "[Client] Server replay: " << buffer << std::endl;
-            }
-        }
-        else if (activity == 0)
-        {
-            std::cout << "[Client] Timeout!" << std::endl;
-        }
-        else
-        {
-            // 发生错误
-            break;
-        }
+        memset(buffer, 0, sizeof buffer);
+        recv(sock, buffer, len, 0); // 读取报文内容
+        printf("recv: %s\n", buffer);
     }
     close(sock);
 }

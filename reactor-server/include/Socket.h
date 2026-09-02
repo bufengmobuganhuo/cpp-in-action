@@ -33,6 +33,7 @@ public:
     void bind(const InetAddress& serv_addr); // 绑定IP和端口号
     void listen(int nn=128) const; // 服务端开启监听
     int accept(InetAddress& client_addr); // 接受客户端连接请求
+    void set_addr(const std::string& ip, uint16_t port);
 };
 
 

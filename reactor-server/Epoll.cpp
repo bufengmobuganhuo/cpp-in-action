@@ -58,6 +58,7 @@ void Epoll::update_channel(Channel* channel) const
             close(epoll_fd_);
             exit(-1);
         }
+        channel->set_in_epoll();
     }
 }
 
@@ -66,10 +67,9 @@ std::vector<Channel*> Epoll::loop(int timeout)
     std::vector<Channel*> channels;
     bzero(ready_events_, sizeof ready_events_);
     int ready_count = epoll_wait(epoll_fd_, ready_events_, k_max_events, timeout);
-    if (ready_count < 0 && errno != EINTR)
+    if (ready_count < 0)
     {
         perror("[Server] epoll_wait failed");
-        exit(-1);
     }
     if (ready_count == 0)
     {

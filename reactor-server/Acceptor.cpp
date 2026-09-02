@@ -46,6 +46,7 @@ void Acceptor::new_connection() const
 {
     InetAddress client_addr;
     auto* client_socket = new Socket(serv_socket_->accept(client_addr), client_addr.ip(), client_addr.port());
+    client_socket->set_addr(client_addr.ip(), client_addr.port());
     new_connection_func_(client_socket);
 
 }

@@ -24,8 +24,11 @@ public:
     ~TcpServer();
     void start(); // 开启服务器
     void new_connection(Socket* client_socket); // 创建Connection
+    void handle_message(Connection* conn,  std::string message); // 处理接收到的报文，由connection回调
+    void on_write_complete(Connection* conn); // 数据发完后的回调，由connection回调
     void on_disconnect(Connection* conn);
     void on_error(Connection* conn);
+    void on_timeout(EventLoop* loop); // epoll_wait()的回调
 };
 
 #endif //REACTOR_SERVER_TCPSERVER_H
