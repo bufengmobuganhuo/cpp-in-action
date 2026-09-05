@@ -15,6 +15,7 @@ public:
     ~Buffer();
 
     void append(const char* data, size_t size); // 追加到buffer中
+    void append_with_head(const char* data, size_t size); // 附加报文头部后放入buffer
     void erase(size_t start, size_t len); // 从指定位置开始删除len个字节
     size_t size(); // 返回buffer大小
     const char* data() const; // 返回buffer内的数据

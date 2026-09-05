@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "EchoServer Channel 回调事件流",
+    "output": "echo-server-event-flow.html",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "viewBox": [1100, 650],
+    "views": [
+      { "id": "callback-wiring", "label": "业务回调注入", "focus": ["echoServer", "tcpServer", "connection"], "note": "EchoServer 把自己的处理函数注册到 TcpServer。" },
+      { "id": "read-echo", "label": "读消息并回显", "focus": ["eventLoop", "channel", "connection", "tcpServer", "echoServer"], "note": "Channel 触发 Connection，TcpServer 再桥接到 EchoServer。" },
+      { "id": "write-event", "label": "写事件", "focus": ["connection", "channel"], "note": "EchoServer 调 send 后，Connection 让 Channel 关注 EPOLLOUT。" }
+    ]
+  },
+  "participants": [
+    { "id": "client", "type": "external", "label": "Client" },
+    { "id": "eventLoop", "type": "backend", "label": "EventLoop" },
+    { "id": "epoll", "type": "cloud", "label": "Epoll" },
+    { "id": "channel", "type": "messagebus", "label": "Channel" },
+    { "id": "connection", "type": "backend", "label": "Connection" },
+    { "id": "tcpServer", "type": "backend", "label": "TcpServer" },
+    { "id": "echoServer", "type": "backend", "label": "EchoServer" }
+  ],
+  "segments": [
+    { "from": 150, "to": 265, "label": "初始化回调" },
+    { "from": 285, "to": 470, "label": "读消息并回显" },
+    { "from": 495, "to": 570, "label": "写事件" }
+  ],
+  "messages": [
+    { "id": "construct-tcp", "from": "echoServer", "to": "tcpServer", "y": 175, "label": "new TcpServer(ip, port)", "variant": "emphasis" },
+    { "id": "register-service-callbacks", "from": "echoServer", "to": "tcpServer", "y": 215, "label": "set_*_callback_func_(EchoServer::handle_*)", "variant": "emphasis" },
+    { "id": "connection-binds-server", "from": "tcpServer", "to": "connection", "y": 255, "label": "Connection 绑定 TcpServer 回调", "variant": "dashed" },
+    { "id": "run-loop", "from": "eventLoop", "to": "epoll", "y": 300, "label": "epoll_->loop()", "variant": "emphasis" },
+    { "id": "ready-channel", "from": "epoll", "to": "channel", "y": 335, "label": "set_ready_event + return Channel", "variant": "return" },
+    { "id": "dispatch-read", "from": "eventLoop", "to": "channel", "y": 370, "label": "handle_event()", "variant": "emphasis" },
+    { "id": "read-callback", "from": "channel", "to": "connection", "y": 405, "label": "EPOLLIN -> read_callback_()", "variant": "emphasis" },
+    { "id": "parsed-message", "from": "connection", "to": "tcpServer", "y": 440, "label": "on_message_callback_func_(conn, msg)", "variant": "dashed" },
+    { "id": "service-message", "from": "tcpServer", "to": "echoServer", "y": 475, "label": "handle_message_callback_func_", "variant": "emphasis" },
+    { "id": "echo-send", "from": "echoServer", "to": "connection", "y": 510, "label": "conn->send(reply frame)", "variant": "return" },
+    { "id": "enable-write", "from": "connection", "to": "channel", "y": 545, "label": "enable_writing() -> EPOLLOUT", "variant": "dashed" },
+    { "id": "write-complete", "from": "connection", "to": "echoServer", "y": 565, "label": "write complete 经 TcpServer 转发", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "echoServer", "from": 175, "to": 570, "type": "backend" },
+    { "participant": "tcpServer", "from": 175, "to": 570, "type": "backend" },
+    { "participant": "eventLoop", "from": 300, "to": 410, "type": "backend" },
+    { "participant": "epoll", "from": 300, "to": 340, "type": "cloud" },
+    { "participant": "channel", "from": 335, "to": 550, "type": "messagebus" },
+    { "participant": "connection", "from": 255, "to": 570, "type": "backend" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "EchoServer 的位置",
+      "items": [
+        "EchoServer 不直接拥有 Channel，只注册业务回调。",
+        "handle_message 组装 reply 帧并调用 Connection::send。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "回调链路",
+      "items": [
+        "Connection 事件先回调 TcpServer，再转发到 EchoServer。",
+        "写事件由 send 触发 enable_writing，之后 EPOLLOUT 调 Connection::write。"
+      ]
+    }
+  ]
+}

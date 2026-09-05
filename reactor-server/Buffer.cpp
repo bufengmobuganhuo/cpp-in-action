@@ -6,16 +6,20 @@
 
 Buffer::Buffer()
 {
-
 }
 
 Buffer::~Buffer()
 {
-
 }
 
 void Buffer::append(const char* data, size_t size)
 {
+    buf_.append(data, size);
+}
+
+void Buffer::append_with_head(const char* data, size_t size)
+{
+    buf_.append((char*)&size, 4);
     buf_.append(data, size);
 }
 

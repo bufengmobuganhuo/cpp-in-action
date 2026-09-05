@@ -103,7 +103,7 @@ void Connection::on_message()
     }
 }
 
-void Connection::set_on_message_callback_func_(std::function<void(Connection*, std::string)> on_message_callback_func)
+void Connection::set_on_message_callback_func_(std::function<void(Connection*, std::string&)> on_message_callback_func)
 {
     on_message_callback_func_ = std::move(on_message_callback_func);
 }
@@ -135,7 +135,7 @@ void Connection::set_on_error_callback_func(std::function<void(Connection*)> on_
 
 void Connection::send(const char* data, size_t size)
 {
-    output_buffer_->append(data, size);
+    output_buffer_->append_with_head(data, size);
     client_channel_->enable_writing(); // 注册写事件
 }
 

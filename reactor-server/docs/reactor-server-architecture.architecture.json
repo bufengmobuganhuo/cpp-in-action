@@ -6,105 +6,91 @@
     "output": "reactor-server-architecture.html",
     "locale": "zh-CN",
     "quality_profile": "showcase",
-    "viewBox": [1180, 760],
+    "viewBox": [1360, 620],
     "views": [
       {
-        "id": "server-bootstrap",
-        "label": "启动与注册",
-        "focus": ["tcpServer", "eventLoop", "epoll", "acceptor", "listenChannel"],
-        "note": "TcpServer 创建 EventLoop 和 Acceptor，Acceptor 将监听 fd 的读事件注册到 epoll。"
+        "id": "bootstrap",
+        "label": "启动结构",
+        "focus": ["tcpServer", "eventLoop", "epoll", "acceptor"],
+        "note": "TcpServer 创建 EventLoop 与 Acceptor，并把应用层回调交给底层对象。"
       },
       {
-        "id": "accept-path",
-        "label": "新连接路径",
-        "focus": ["epoll", "listenChannel", "acceptor", "socket", "connection", "clientChannel"],
-        "note": "监听 Channel 就绪后触发 accept，再创建 Connection 和客户端 Channel。"
+        "id": "dispatch",
+        "label": "事件分发",
+        "focus": ["eventLoop", "epoll", "channel", "acceptor", "connection"],
+        "note": "EventLoop 通过 Epoll 拿到就绪 Channel，Channel 再调用 Acceptor 或 Connection。"
       },
       {
-        "id": "message-path",
-        "label": "消息读写路径",
-        "focus": ["clientChannel", "connection", "buffer", "tcpServer"],
-        "note": "客户端 Channel 触发 Connection 读写，业务处理回调回到 TcpServer。"
+        "id": "io",
+        "label": "连接 IO",
+        "focus": ["client", "socket", "connection", "buffer", "tcpServer"],
+        "note": "Connection 封装客户端 Socket 和 Buffer，消息处理完成后回调 TcpServer。"
       }
     ]
   },
   "components": [
     {
-      "id": "client",
-      "type": "external",
-      "label": "Client",
-      "sublabel": "TCP 客户端",
-      "pos": [40, 330],
-      "size": [130, 64]
-    },
-    {
       "id": "tcpServer",
       "type": "backend",
       "label": "TcpServer",
-      "sublabel": "服务器门面 / 业务回调",
-      "tag": "event_loop_ acceptor_ conns_",
-      "pos": [230, 330],
-      "size": [160, 76]
+      "sublabel": "入口门面 / 业务回调",
+      "tag": "TcpServer.cpp + TcpServer.h",
+      "pos": [80, 300],
+      "size": [185, 78]
+    },
+    {
+      "id": "acceptor",
+      "type": "backend",
+      "label": "Acceptor",
+      "sublabel": "监听 socket / accept",
+      "tag": "serv_socket_ accept_channel_",
+      "pos": [360, 80],
+      "size": [185, 78]
     },
     {
       "id": "eventLoop",
       "type": "backend",
       "label": "EventLoop",
       "sublabel": "事件循环调度",
-      "pos": [470, 330],
-      "size": [150, 68]
+      "tag": "epoll_",
+      "pos": [360, 455],
+      "size": [185, 74]
+    },
+    {
+      "id": "channel",
+      "type": "messagebus",
+      "label": "Channel",
+      "sublabel": "fd 事件与回调绑定",
+      "tag": "events_ ready_events_",
+      "pos": [660, 250],
+      "size": [190, 82]
     },
     {
       "id": "epoll",
       "type": "cloud",
       "label": "Epoll",
       "sublabel": "epoll_ctl / epoll_wait",
-      "pos": [720, 330],
-      "size": [150, 68]
-    },
-    {
-      "id": "acceptor",
-      "type": "backend",
-      "label": "Acceptor",
-      "sublabel": "监听 socket 与 accept",
-      "tag": "new_connection_func_",
-      "pos": [230, 120],
-      "size": [160, 72]
-    },
-    {
-      "id": "listenChannel",
-      "type": "messagebus",
-      "label": "Channel",
-      "sublabel": "监听 fd 事件分发",
-      "tag": "EPOLLIN",
-      "pos": [470, 120],
-      "size": [150, 72]
+      "tag": "epoll_fd_",
+      "pos": [660, 455],
+      "size": [185, 74]
     },
     {
       "id": "connection",
       "type": "backend",
       "label": "Connection",
       "sublabel": "客户端连接封装",
-      "tag": "read / send / write",
-      "pos": [470, 540],
-      "size": [160, 74]
-    },
-    {
-      "id": "clientChannel",
-      "type": "messagebus",
-      "label": "Channel",
-      "sublabel": "客户端 fd 事件分发",
-      "tag": "EPOLLIN | EPOLLOUT | ET",
-      "pos": [720, 540],
-      "size": [170, 74]
+      "tag": "client_channel_",
+      "pos": [960, 300],
+      "size": [190, 82]
     },
     {
       "id": "socket",
       "type": "security",
       "label": "Socket",
-      "sublabel": "fd 生命周期与系统调用",
-      "pos": [950, 330],
-      "size": [150, 68]
+      "sublabel": "fd 生命周期和系统调用",
+      "tag": "bind listen accept4",
+      "pos": [960, 80],
+      "size": [190, 78]
     },
     {
       "id": "buffer",
@@ -112,196 +98,171 @@
       "label": "Buffer",
       "sublabel": "输入 / 输出缓冲",
       "tag": "4 字节长度头",
-      "pos": [230, 540],
-      "size": [160, 70]
+      "pos": [960, 455],
+      "size": [190, 74]
+    },
+    {
+      "id": "client",
+      "type": "external",
+      "label": "Client",
+      "sublabel": "TCP 客户端",
+      "pos": [1210, 80],
+      "size": [120, 70]
     }
   ],
   "boundaries": [
     {
       "kind": "region",
-      "label": "单 Reactor 主循环",
-      "wraps": ["tcpServer", "eventLoop", "epoll", "acceptor", "listenChannel", "connection", "clientChannel", "buffer"]
+      "label": "单线程 Reactor",
+      "wraps": ["tcpServer", "acceptor", "eventLoop", "channel", "epoll", "connection", "buffer"]
     },
     {
       "kind": "security-group",
-      "label": "fd / socket 资源层",
-      "wraps": ["socket", "listenChannel", "clientChannel"]
+      "label": "fd / socket 资源",
+      "wraps": ["socket", "client"]
     }
   ],
   "connections": [
     {
-      "id": "server-owns-loop",
+      "id": "tcpserver-to-acceptor",
       "from": "tcpServer",
-      "to": "eventLoop",
-      "label": "创建并调用 run()",
-      "variant": "emphasis"
+      "to": "acceptor",
+      "label": "new + bind callback",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "left",
+      "labelDy": -34
     },
     {
-      "id": "loop-polls-epoll",
+      "id": "tcpserver-to-eventloop",
+      "from": "tcpServer",
+      "to": "eventLoop",
+      "label": "start -> run",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "labelDy": 42
+    },
+    {
+      "id": "eventloop-to-epoll",
       "from": "eventLoop",
       "to": "epoll",
-      "label": "loop() 返回就绪 Channel",
-      "variant": "emphasis"
+      "label": "epoll_->loop()",
+      "variant": "emphasis",
+      "labelDy": 42
     },
     {
-      "id": "server-owns-acceptor",
-      "from": "tcpServer",
-      "to": "acceptor",
-      "label": "创建并绑定 new_connection",
-      "fromSide": "top",
-      "toSide": "bottom"
-    },
-    {
-      "id": "acceptor-registers-listen",
-      "from": "acceptor",
-      "to": "listenChannel",
-      "label": "监听 fd enable_reading()",
-      "variant": "emphasis"
-    },
-    {
-      "id": "listen-channel-to-loop",
-      "from": "listenChannel",
-      "to": "eventLoop",
-      "label": "update_channel(this)",
-      "fromSide": "bottom",
-      "toSide": "top"
-    },
-    {
-      "id": "epoll-dispatch-listen",
+      "id": "epoll-to-channel",
       "from": "epoll",
-      "to": "listenChannel",
-      "label": "set_ready_event",
+      "to": "channel",
+      "label": "ready Channel",
+      "variant": "emphasis",
       "fromSide": "top",
-      "toSide": "right"
+      "toSide": "bottom",
+      "labelDx": 86
     },
     {
-      "id": "listen-event-accept",
-      "from": "listenChannel",
+      "id": "acceptor-to-channel",
+      "from": "acceptor",
+      "to": "channel",
+      "label": "listen fd EPOLLIN",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "top",
+      "labelDy": -30
+    },
+    {
+      "id": "channel-to-acceptor",
+      "from": "channel",
       "to": "acceptor",
       "label": "read_callback_",
-      "variant": "dashed"
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "right",
+      "labelAt": [666, 406]
     },
     {
-      "id": "acceptor-uses-socket",
+      "id": "acceptor-to-socket",
       "from": "acceptor",
       "to": "socket",
       "label": "bind/listen/accept4",
       "fromSide": "right",
-      "toSide": "top"
+      "toSide": "left",
+      "labelDy": -38
     },
     {
       "id": "client-to-socket",
       "from": "client",
       "to": "socket",
-      "label": "TCP connect / read / write",
+      "label": "TCP",
       "variant": "dashed"
     },
     {
-      "id": "accepted-socket-callback",
-      "from": "acceptor",
-      "to": "tcpServer",
-      "label": "new_connection_func_(Socket*)",
-      "variant": "dashed",
-      "fromSide": "bottom",
-      "toSide": "top"
-    },
-    {
-      "id": "server-creates-connection",
+      "id": "tcpserver-to-connection",
       "from": "tcpServer",
       "to": "connection",
-      "label": "new Connection(loop, socket)",
-      "fromSide": "bottom",
-      "toSide": "top"
-    },
-    {
-      "id": "connection-registers-client",
-      "from": "connection",
-      "to": "clientChannel",
-      "label": "绑定读写关闭错误回调",
-      "variant": "emphasis"
-    },
-    {
-      "id": "client-channel-updates-loop",
-      "from": "clientChannel",
-      "to": "eventLoop",
-      "label": "EPOLLIN/EPOLLOUT 更新",
-      "fromSide": "top",
-      "toSide": "bottom"
-    },
-    {
-      "id": "epoll-dispatch-client",
-      "from": "epoll",
-      "to": "clientChannel",
-      "label": "就绪事件",
-      "fromSide": "bottom",
-      "toSide": "top"
-    },
-    {
-      "id": "client-channel-calls-connection",
-      "from": "clientChannel",
-      "to": "connection",
-      "label": "read/write/close/error 回调",
-      "variant": "dashed"
-    },
-    {
-      "id": "connection-uses-buffer",
-      "from": "connection",
-      "to": "buffer",
-      "label": "input_buffer_ / output_buffer_"
-    },
-    {
-      "id": "connection-message-callback",
-      "from": "connection",
-      "to": "tcpServer",
-      "label": "on_message_callback_func_",
-      "variant": "dashed",
-      "fromSide": "left",
-      "toSide": "bottom"
-    },
-    {
-      "id": "server-sends-reply",
-      "from": "tcpServer",
-      "to": "connection",
-      "label": "handle_message -> send()",
+      "label": "new Connection + callbacks",
       "variant": "emphasis",
       "fromSide": "bottom",
-      "toSide": "left"
+      "toSide": "left",
+      "via": [[172.5, 560], [900, 560], [900, 341]],
+      "labelAt": [610, 580]
     },
     {
-      "id": "connection-owns-socket",
+      "id": "connection-to-channel",
+      "from": "connection",
+      "to": "channel",
+      "label": "client fd callbacks",
+      "variant": "emphasis",
+      "fromSide": "left",
+      "toSide": "right",
+      "labelDy": -54
+    },
+    {
+      "id": "connection-to-socket",
       "from": "connection",
       "to": "socket",
-      "label": "client_socket_ fd",
-      "fromSide": "right",
-      "toSide": "bottom"
+      "label": "client_socket_",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelDx": 92
+    },
+    {
+      "id": "connection-to-buffer",
+      "from": "connection",
+      "to": "buffer",
+      "label": "input/output",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [1143, 396]
     }
   ],
   "cards": [
     {
       "dot": "cyan",
-      "title": "TcpServer 入口职责",
+      "title": "TcpServer：入口和生命周期",
       "items": [
-        "依据 TcpServer.cpp 和 include/TcpServer.h：构造函数创建 EventLoop，并把 epoll_wait 超时回调绑定到 TcpServer::on_timeout。",
-        "构造函数创建 Acceptor，并把新连接回调绑定到 TcpServer::new_connection。",
-        "conns_ 以 fd 为 key 管理所有 Connection，断开或错误时 erase 后 delete。"
+        "TcpServer.cpp 创建 EventLoop 和 Acceptor，TcpServer.h 暴露回调接口。",
+        "event_loop_、acceptor_、conns_ 分别表示主循环、接收器和连接表。",
+        "new_connection 创建 Connection，并绑定消息、写完成、断开、错误回调。"
       ]
     },
     {
       "dot": "emerald",
-      "title": "Reactor 事件分发",
+      "title": "EventLoop / Epoll / Channel：Reactor 核心",
       "items": [
-        "依据 EventLoop.cpp：EventLoop::run 持续调用 Epoll::loop，只遍历已经就绪的 Channel。",
-        "依据 Channel.cpp 和 include/Channel.h：Channel 保存 fd、关注事件、就绪事件和四类回调，是 epoll 事件到类方法的分发点。",
-        "依据 Epoll.cpp：Epoll::update_channel 根据 Channel::in_epoll 选择 EPOLL_CTL_ADD 或 EPOLL_CTL_MOD。"
+        "EventLoop::run 调 Epoll::loop，只遍历 epoll_wait 返回的就绪 Channel。",
+        "Epoll 用 epoll_ctl 注册或更新 Channel，用 epoll_wait 等待事件。",
+        "Channel 绑定 fd、events_、ready_events_ 和 read/write/close/error 回调。"
       ]
     },
     {
       "dot": "amber",
-      "title": "连接和消息处理",
+      "title": "Acceptor / Connection：连接处理",
       "items": [
-        "依据 Acceptor.cpp：Acceptor 持有监听 Socket 和监听 Channel，读事件触发 accept4 生成客户端 Socket。",
-        "依据 Connection.cpp 和 include/Connection.h：Connection 持有客户端 Socket、客户端 Channel、输入 Buffer、输出 Buffer。",
-        "依据 Buffer.cpp：读路径按 4 字节长度头拆包，业务处理后 TcpServer 加 reply 前缀并调用 Connection::send。"
+        "Acceptor 监听 fd 可读时调用 accept4，生成客户端 Socket。",
+        "Connection 持有客户端 Socket、Channel、输入 Buffer、输出 Buffer。",
+        "读路径按 4 字节长度头拆包；TcpServer::handle_message 回复后调用 send。"
       ]
     }
   ]

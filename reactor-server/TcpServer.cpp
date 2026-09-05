@@ -4,6 +4,7 @@
 #include "include/TcpServer.h"
 
 #include <iostream>
+#include <utility>
 
 #include "include/Acceptor.h"
 #include "include/Channel.h"
@@ -46,28 +47,37 @@ void TcpServer::new_connection(Socket* client_socket)
     printf("new client(fd=%d,ip=%s,port=%d) ok.\n", client_socket->fd(), connection->ip().c_str(),
            connection->port());
     conns_[connection->fd()] = connection;
+    if (new_connection_callback_func_)
+    {
+        new_connection_callback_func_(client_socket);
+    }
 }
 
 void TcpServer::handle_message(Connection* conn, std::string message)
 {
-    ulong len;
-    message = "reply: " + message;
-    len = message.size();
-    std::string tmp_buffer((char*)&len, 4); // 填充报文头部
-    tmp_buffer.append(message); // 填充报文内容
-
-    conn->send(tmp_buffer.data(), tmp_buffer.size());
+    if (handle_message_callback_func_)
+    {
+        handle_message_callback_func_(conn, message);
+    }
 }
 
 void TcpServer::on_write_complete(Connection* conn)
 {
     std::cout << "[EpollServer] write complete" << std::endl;
+    if (on_write_complete_callback_func_)
+    {
+        on_write_complete_callback_func_(conn);
+    }
 }
 
 void TcpServer::on_disconnect(Connection* conn)
 {
     printf("[EpollServer] event_fd=%d is closed", conn->fd());
     conns_.erase(conn->fd());
+    if (on_disconnect_callback_func_)
+    {
+        on_disconnect_callback_func_(conn);
+    }
     delete conn;
 }
 
@@ -75,10 +85,48 @@ void TcpServer::on_error(Connection* conn)
 {
     std::cout << "[EpollServer] error " << "for client: " << conn->fd() << std::endl;
     conns_.erase(conn->fd());
+    if (on_error_callback_func_)
+    {
+        on_error_callback_func_(conn);
+    }
     delete conn;
 }
 
 void TcpServer::on_timeout(EventLoop* loop)
 {
     std::cout << "[EpollServer] timeout " << std::endl;
+    if (on_timeout_callback_func_)
+    {
+        on_timeout_callback_func_(loop);
+    }
+}
+
+void TcpServer::set_new_connection_callback_func_(std::function<void(Socket* client_socket)> fn)
+{
+    new_connection_callback_func_ = std::move(fn);
+}
+
+void TcpServer::set_handle_message_callback_func_(std::function<void(Connection* conn, std::string& message)> fn)
+{
+    handle_message_callback_func_ = std::move(fn);
+}
+
+void TcpServer::set_on_write_complete_callback_func_(std::function<void(Connection* conn)> fn)
+{
+    on_write_complete_callback_func_ = std::move(fn);
+}
+
+void TcpServer::set_on_disconnect_callback_func_(std::function<void(Connection* conn)> fn)
+{
+    on_disconnect_callback_func_ = std::move(fn);
+}
+
+void TcpServer::set_on_error_callback_func_(std::function<void(Connection* conn)> fn)
+{
+    on_error_callback_func_ = std::move(fn);
+}
+
+void TcpServer::set_on_timeout_callback_func_(std::function<void(EventLoop* loop)> fn)
+{
+    on_timeout_callback_func_ = std::move(fn);
 }

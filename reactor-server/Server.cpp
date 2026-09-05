@@ -6,9 +6,10 @@
 
 #include "include/InetAddress.h"
 #include "include/TcpServer.h"
+#include "service/EchoServer.h"
 
 int main(int argc, char* argv[])
 {
-    TcpServer tcp_server(argv[1], atoi(argv[2]));
-    tcp_server.start();
+    TcpServer server(argv[1], atoi(argv[2]));
+    server.start();
 }

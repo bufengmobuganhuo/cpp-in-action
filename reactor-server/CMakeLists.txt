@@ -28,7 +28,11 @@ add_executable(netserver Server.cpp
         Buffer.cpp
         include/Buffer.h
         service/EchoServer.cpp
-        service/EchoServer.h)
+        service/EchoServer.h
+        include/ThreadPool.h
+        ThreadPool.cpp
+        include/ThreadPool.h
+        ThreadPool.cpp)
 add_executable(netclient Client.cpp
         InetAddress.cpp
         include/InetAddress.h
