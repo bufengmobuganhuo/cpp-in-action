@@ -62,6 +62,24 @@ void Epoll::update_channel(Channel* channel) const
     }
 }
 
+void Epoll::remove_channel(Channel* channel)
+{
+    epoll_event ev{};
+    // 指定channel
+    ev.data.ptr = channel;
+    // 指定事件
+    ev.events = channel->events();
+    if (channel->in_epoll())
+    {
+        if (epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, channel->fd(), &ev) < 0)
+        {
+            perror("[EpollServer] epoll_ctl DEL server failed");
+            return;
+        }
+        printf("removed channel: %d", channel->fd());
+    }
+}
+
 std::vector<Channel*> Epoll::loop(int timeout)
 {
     std::vector<Channel*> channels;

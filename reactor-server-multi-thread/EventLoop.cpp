@@ -19,7 +19,6 @@ EventLoop::EventLoop():epoll_(new Epoll())
 
 EventLoop::~EventLoop()
 {
-    delete epoll_;
 }
 
 void EventLoop::run()
@@ -42,6 +41,11 @@ void EventLoop::run()
 void EventLoop::update_channel(Channel* ch)
 {
     epoll_->update_channel(ch);
+}
+
+void EventLoop::remove_channel(Channel* ch)
+{
+    epoll_->remove_channel(ch);
 }
 
 void EventLoop::set_on_timeout_callback_func_(std::function<void(EventLoop*)> on_timeout_callback_func)

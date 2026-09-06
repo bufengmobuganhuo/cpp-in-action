@@ -4,6 +4,7 @@
 #include "include/TcpServer.h"
 
 #include <iostream>
+#include <memory>
 #include <utility>
 
 #include "include/Acceptor.h"
@@ -12,35 +13,23 @@
 #include "include/EventLoop.h"
 #include "include/ThreadPool.h"
 
-TcpServer::TcpServer(const std::string& ip, uint16_t port, int thread_num)
+TcpServer::TcpServer(const std::string& ip, uint16_t port, int thread_num) :
+main_event_loop_(new EventLoop()), acceptor_(new Acceptor(main_event_loop_, ip, port)),
+thread_pool_(new ThreadPool(thread_num, "acceptor"))
 {
-    main_event_loop_ = new EventLoop();
     main_event_loop_->set_on_timeout_callback_func_(std::bind(&TcpServer::on_timeout, this, std::placeholders::_1));
-
-    acceptor_ = new Acceptor(main_event_loop_, ip, port);
     acceptor_->set_new_connection_func(std::bind(&TcpServer::new_connection, this, std::placeholders::_1));
-
     thread_num_ = thread_num;
-    thread_pool_ = new ThreadPool(thread_num, "acceptor");
-
     for (int i = 0; i < thread_num; i++)
     {
-        EventLoop* event_loop = new EventLoop();
-        sub_event_loops_.push_back(event_loop); // 创建从事件循环
-        event_loop->set_on_timeout_callback_func_(std::bind(&TcpServer::on_timeout, this, std::placeholders::_1));
-        thread_pool_->add_task(std::bind(&EventLoop::run, event_loop));
+        sub_event_loops_.emplace_back(new EventLoop()); // 创建从事件循环
+        sub_event_loops_[i]->set_on_timeout_callback_func_(std::bind(&TcpServer::on_timeout, this, std::placeholders::_1));
+        thread_pool_->add_task(std::bind(&EventLoop::run, sub_event_loops_[i].get()));
     }
 }
 
 TcpServer::~TcpServer()
-{
-    delete main_event_loop_;
-    delete acceptor_;
-    for (auto conn : conns_)
-    {
-        delete conn.second;
-    }
-}
+= default;
 
 void TcpServer::start()
 {
@@ -48,23 +37,24 @@ void TcpServer::start()
     main_event_loop_->run();
 }
 
-void TcpServer::new_connection(Socket* client_socket)
+void TcpServer::new_connection(std::unique_ptr<Socket> client_socket)
 {
-    Connection* connection = new Connection(sub_event_loops_[client_socket->fd() % thread_num_], client_socket);
+    int fd = client_socket->fd();
+    std::shared_ptr<Connection> connection = std::make_shared<Connection>(sub_event_loops_[fd % thread_num_], std::move(client_socket));
     connection->set_on_message_callback_func_(std::bind(&TcpServer::handle_message, this, std::placeholders::_1, std::placeholders::_2));
     connection->set_on_write_complete_callback_func_(std::bind(&TcpServer::on_write_complete, this, std::placeholders::_1));
     connection->set_on_disconnect_callback_func(std::bind(&TcpServer::on_disconnect, this, std::placeholders::_1));
     connection->set_on_error_callback_func(std::bind(&TcpServer::on_error, this, std::placeholders::_1));
-    printf("new client(fd=%d,ip=%s,port=%d) ok.\n", client_socket->fd(), connection->ip().c_str(),
+    printf("new client(fd=%d,ip=%s,port=%d) ok.\n", fd, connection->ip().c_str(),
            connection->port());
     conns_[connection->fd()] = connection;
     if (new_connection_callback_func_)
     {
-        new_connection_callback_func_(client_socket);
+        new_connection_callback_func_(connection);
     }
 }
 
-void TcpServer::handle_message(Connection* conn, std::string message)
+void TcpServer::handle_message(std::shared_ptr<Connection> conn, std::string message)
 {
     if (handle_message_callback_func_)
     {
@@ -72,7 +62,7 @@ void TcpServer::handle_message(Connection* conn, std::string message)
     }
 }
 
-void TcpServer::on_write_complete(Connection* conn)
+void TcpServer::on_write_complete(std::shared_ptr<Connection> conn)
 {
     std::cout << "[EpollServer] write complete" << std::endl;
     if (on_write_complete_callback_func_)
@@ -81,7 +71,7 @@ void TcpServer::on_write_complete(Connection* conn)
     }
 }
 
-void TcpServer::on_disconnect(Connection* conn)
+void TcpServer::on_disconnect(const std::shared_ptr<Connection>& conn)
 {
     printf("[EpollServer] event_fd=%d is closed", conn->fd());
     conns_.erase(conn->fd());
@@ -89,10 +79,9 @@ void TcpServer::on_disconnect(Connection* conn)
     {
         on_disconnect_callback_func_(conn);
     }
-    delete conn;
 }
 
-void TcpServer::on_error(Connection* conn)
+void TcpServer::on_error(const std::shared_ptr<Connection>& conn)
 {
     std::cout << "[EpollServer] error " << "for client: " << conn->fd() << std::endl;
     conns_.erase(conn->fd());
@@ -100,7 +89,6 @@ void TcpServer::on_error(Connection* conn)
     {
         on_error_callback_func_(conn);
     }
-    delete conn;
 }
 
 void TcpServer::on_timeout(EventLoop* loop)
@@ -112,27 +100,27 @@ void TcpServer::on_timeout(EventLoop* loop)
     }
 }
 
-void TcpServer::set_new_connection_callback_func_(std::function<void(Socket* client_socket)> fn)
+void TcpServer::set_new_connection_callback_func_(std::function<void(std::shared_ptr<Connection> conn)> fn)
 {
     new_connection_callback_func_ = std::move(fn);
 }
 
-void TcpServer::set_handle_message_callback_func_(std::function<void(Connection* conn, std::string& message)> fn)
+void TcpServer::set_handle_message_callback_func_(std::function<void(std::shared_ptr<Connection> conn, std::string& message)> fn)
 {
     handle_message_callback_func_ = std::move(fn);
 }
 
-void TcpServer::set_on_write_complete_callback_func_(std::function<void(Connection* conn)> fn)
+void TcpServer::set_on_write_complete_callback_func_(std::function<void(std::shared_ptr<Connection> conn)> fn)
 {
     on_write_complete_callback_func_ = std::move(fn);
 }
 
-void TcpServer::set_on_disconnect_callback_func_(std::function<void(Connection* conn)> fn)
+void TcpServer::set_on_disconnect_callback_func_(std::function<void(std::shared_ptr<Connection> conn)> fn)
 {
     on_disconnect_callback_func_ = std::move(fn);
 }
 
-void TcpServer::set_on_error_callback_func_(std::function<void(Connection* conn)> fn)
+void TcpServer::set_on_error_callback_func_(std::function<void(std::shared_ptr<Connection> conn)> fn)
 {
     on_error_callback_func_ = std::move(fn);
 }

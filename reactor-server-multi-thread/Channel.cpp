@@ -13,7 +13,7 @@
 #include "include/InetAddress.h"
 #include "include/Socket.h"
 
-Channel::Channel(EventLoop* event_loop, int fd) : event_loop_(event_loop), fd_(fd)
+Channel::Channel(const std::unique_ptr<EventLoop>& event_loop, int fd) : event_loop_(event_loop), fd_(fd)
 {
 }
 
@@ -54,6 +54,19 @@ void Channel::disable_writing()
     event_loop_->update_channel(this);
 }
 
+void Channel::disable_all()
+{
+    events_ = 0;
+    event_loop_->update_channel(this);
+}
+
+void Channel::remove_channel()
+{
+    disable_all();
+    event_loop_->remove_channel(this);
+    in_epoll_ = false;
+}
+
 void Channel::set_in_epoll()
 {
     in_epoll_ = true;
@@ -83,6 +96,7 @@ void Channel::handle_event()
 {
     if (ready_events_ & EPOLLRDHUP)
     {
+        remove_channel();
         disconnect_callback_();
     }
     else if (ready_events_ & (EPOLLIN | EPOLLPRI))
@@ -96,6 +110,7 @@ void Channel::handle_event()
     }
     else
     {
+        remove_channel();
         error_callback_();
     }
 }

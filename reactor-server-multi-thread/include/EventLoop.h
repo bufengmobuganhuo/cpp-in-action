@@ -5,6 +5,7 @@
 #ifndef REACTOR_SERVER_EVENTLOOP_H
 #define REACTOR_SERVER_EVENTLOOP_H
 #include <functional>
+#include <memory>
 
 class Epoll;
 class Channel;
@@ -12,7 +13,7 @@ class Channel;
 class EventLoop
 {
 private:
-    Epoll* epoll_;
+    std::unique_ptr<Epoll> epoll_;
     std::function<void(EventLoop*)> on_timeout_callback_func_; // epoll_wait超时的回调
 public:
     EventLoop();
@@ -20,6 +21,7 @@ public:
 
     void run(); // 运行事件循环
     void update_channel(Channel *ch);// 把channel添加/更新到红黑树上，channel中有fd，也有需要监视的事件。
+    void remove_channel(Channel *ch);// 删除监听的channel
     void set_on_timeout_callback_func_(std::function<void(EventLoop*)> on_timeout_callback_func);
 };
 

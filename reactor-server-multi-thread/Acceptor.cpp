@@ -13,7 +13,7 @@
 #include "include/InetAddress.h"
 #include "include/Socket.h"
 
-Acceptor::Acceptor(EventLoop* event_loop, const std::string& ip, uint16_t port): event_loop_(event_loop)
+Acceptor::Acceptor(const std::unique_ptr<EventLoop>& event_loop, const std::string& ip, uint16_t port): event_loop_(event_loop)
 {
     // 创建服务端用于监听的server_socket_fd
     serv_socket_ = new Socket(create_non_blocking());
@@ -45,13 +45,12 @@ Acceptor::~Acceptor()
 void Acceptor::new_connection() const
 {
     InetAddress client_addr;
-    auto* client_socket = new Socket(serv_socket_->accept(client_addr), client_addr.ip(), client_addr.port());
+    std::unique_ptr<Socket> client_socket(new Socket(serv_socket_->accept(client_addr), client_addr.ip(), client_addr.port()));
     client_socket->set_addr(client_addr.ip(), client_addr.port());
-    new_connection_func_(client_socket);
-
+    new_connection_func_(std::move(client_socket));
 }
 
-void Acceptor::set_new_connection_func(std::function<void(Socket*)> fn)
+void Acceptor::set_new_connection_func(std::function<void(std::unique_ptr<Socket>)> fn)
 {
-    new_connection_func_ = fn;
+    new_connection_func_ = std::move(fn);
 }

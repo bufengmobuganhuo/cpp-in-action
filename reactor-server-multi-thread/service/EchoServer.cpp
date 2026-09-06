@@ -29,7 +29,6 @@ namespace service
 
     EchoServer::~EchoServer()
     {
-        delete tcp_server_;
     }
 
     void EchoServer::start()
@@ -37,12 +36,12 @@ namespace service
         tcp_server_->start();
     }
 
-    void EchoServer::handle_new_connection(Socket* client_socket)
+    void EchoServer::handle_new_connection(std::shared_ptr<Connection> conn)
     {
         std::cout << "[EchoServer] New Connection..., thread is " << syscall(SYS_gettid) << std::endl;
     }
 
-    void EchoServer::handle_message(Connection* conn, std::string& message)
+    void EchoServer::handle_message(const std::shared_ptr<Connection>& conn, std::string& message)
     {
         printf("[EchoServer] handle_message thread is %ld\n", syscall(SYS_gettid));
         thread_pool_->add_task([conn, message]
@@ -52,17 +51,17 @@ namespace service
         });
     }
 
-    void EchoServer::handle_write_complete(Connection* conn)
+    void EchoServer::handle_write_complete(const std::shared_ptr<Connection>& conn)
     {
         std::cout << "[EchoServer] Write Complete..." << std::endl;
     }
 
-    void EchoServer::handle_disconnect(Connection* conn)
+    void EchoServer::handle_disconnect(const std::shared_ptr<Connection>& conn)
     {
         std::cout << "[EchoServer] Disconnect..." << std::endl;
     }
 
-    void EchoServer::handle_error(Connection* conn)
+    void EchoServer::handle_error(const std::shared_ptr<Connection>& conn)
     {
         std::cout << "[EchoServer] Error..." << std::endl;
     }

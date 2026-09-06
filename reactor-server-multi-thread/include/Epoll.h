@@ -22,6 +22,7 @@ public:
     ~Epoll();
 
     void update_channel(Channel *channel) const; // 把Channel添加/更新到Epoll实例
+    void remove_channel(Channel* channel);
     std::vector<Channel*> loop(int timeout= -1); // 运行epoll_wait()，等待就绪的事件
 };
 
