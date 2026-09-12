@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "客户端连接到来时的处理路径",
+    "locale": "zh-CN",
+    "output": "docs/reactor-client-connect.html",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 800],
+    "column_fit": "spread",
+    "views": [
+      {
+        "id": "listener",
+        "label": "谁监听连接",
+        "focus": ["client", "epoll", "accept_channel", "acceptor"],
+        "note": "监听 fd 的 EPOLLIN 由 accept_channel_ 承接。"
+      },
+      {
+        "id": "create-connection",
+        "label": "创建 Connection",
+        "focus": ["acceptor", "tcp_server", "sub_loop", "connection"],
+        "note": "TcpServer 选择子 EventLoop 并创建 Connection。"
+      },
+      {
+        "id": "business-notify",
+        "label": "业务通知",
+        "focus": ["tcp_server", "echo_server"],
+        "note": "EchoServer 的 handle_new_connection 只是业务层通知。"
+      }
+    ]
+  },
+  "participants": [
+    { "id": "client", "type": "external", "label": "客户端", "sublabel": "TCP" },
+    { "id": "epoll", "type": "cloud", "label": "main Loop", "sublabel": "epoll_wait" },
+    { "id": "accept_channel", "type": "messagebus", "label": "accept ch", "sublabel": "listen fd" },
+    { "id": "acceptor", "type": "backend", "label": "Acceptor", "sublabel": "new_connection" },
+    { "id": "tcp_server", "type": "backend", "label": "TcpServer", "sublabel": "new_connection" },
+    { "id": "conn_maps", "type": "database", "label": "conns_", "sublabel": "连接表" },
+    { "id": "sub_loop", "type": "messagebus", "label": "sub EventLoop", "sublabel": "fd % thread_num" },
+    { "id": "connection", "type": "backend", "label": "Connection", "sublabel": "client_channel_" },
+    { "id": "echo_server", "type": "frontend", "label": "EchoServer", "sublabel": "new cb" }
+  ],
+  "segments": [
+    { "from": 165, "to": 330, "label": "监听 fd 就绪" },
+    { "from": 350, "to": 585, "label": "accept 并创建连接对象" },
+    { "from": 605, "to": 748, "label": "业务层通知" }
+  ],
+  "messages": [
+    { "id": "client-connect", "from": "client", "to": "epoll", "y": 185, "label": "TCP 连接到达 listen fd", "variant": "emphasis" },
+    { "id": "ready-channel", "from": "epoll", "to": "accept_channel", "y": 230, "label": "返回 ready Channel*", "variant": "default" },
+    { "id": "handle-event", "from": "accept_channel", "to": "acceptor", "y": 275, "label": "read_callback_: Acceptor::new_connection", "variant": "emphasis" },
+    { "id": "accept-client", "from": "acceptor", "to": "client", "y": 320, "label": "serv_socket_->accept(client_addr)", "variant": "return", "note": "创建非阻塞 client Socket 并保存对端地址" },
+    { "id": "new-conn-callback", "from": "acceptor", "to": "tcp_server", "y": 370, "label": "new_connection_func_(client_socket)", "variant": "emphasis" },
+    { "id": "choose-loop", "from": "tcp_server", "to": "sub_loop", "y": 420, "label": "选择 sub_event_loops_[fd % thread_num_]", "variant": "default" },
+    { "id": "make-connection", "from": "tcp_server", "to": "connection", "y": 470, "label": "make_shared<Connection>(sub_loop, socket)", "variant": "emphasis" },
+    { "id": "bind-conn-callbacks", "from": "tcp_server", "to": "connection", "y": 520, "label": "set_on_message/write/disconnect/error", "variant": "default" },
+    { "id": "register-client-channel", "from": "connection", "to": "sub_loop", "y": 570, "label": "client_channel_->enable_reading()", "variant": "return", "note": "构造 Connection 时注册客户端 fd 读事件" },
+    { "id": "store-main", "from": "tcp_server", "to": "conn_maps", "y": 620, "label": "TcpServer::conns_[fd] = connection", "variant": "dashed" },
+    { "id": "store-sub", "from": "tcp_server", "to": "sub_loop", "y": 665, "label": "sub EventLoop::new_connection(connection)", "variant": "dashed" },
+    { "id": "notify-business", "from": "tcp_server", "to": "echo_server", "y": 704, "label": "new connection cb", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "epoll", "from": 180, "to": 235, "type": "cloud" },
+    { "participant": "accept_channel", "from": 225, "to": 282, "type": "messagebus" },
+    { "participant": "acceptor", "from": 270, "to": 378, "type": "backend" },
+    { "participant": "tcp_server", "from": 365, "to": 709, "type": "backend" },
+    { "participant": "connection", "from": 465, "to": 575, "type": "backend" },
+    { "participant": "sub_loop", "from": 565, "to": 672, "type": "messagebus" },
+    { "participant": "conn_maps", "from": 615, "to": 642, "type": "database" },
+    { "participant": "echo_server", "from": 699, "to": 730, "type": "frontend" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "监听者",
+      "items": [
+        "监听连接请求的是 Acceptor 构造出的 accept_channel_。",
+        "accept_channel_ 注册在 main EventLoop 的 Epoll 上。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "连接落点",
+      "items": [
+        "TcpServer 用 fd % thread_num_ 把连接分配给一个 sub EventLoop。",
+        "Connection 构造时创建 client_channel_ 并启用读事件。"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "服务器停止调用链",
+    "locale": "zh-CN",
+    "output": "docs/reactor-server-stop.html",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 760],
+    "column_fit": "spread",
+    "views": [
+      {
+        "id": "entry",
+        "label": "停止入口",
+        "focus": ["caller", "echo_server", "worker_pool"],
+        "note": "EchoServer::stop 先停止业务 worker 线程池。"
+      },
+      {
+        "id": "reactor-stop",
+        "label": "停止 Reactor",
+        "focus": ["echo_server", "tcp_server", "main_loop", "sub_loops"],
+        "note": "TcpServer 依次停止主 EventLoop 和所有子 EventLoop。"
+      },
+      {
+        "id": "thread-join",
+        "label": "唤醒与回收线程",
+        "focus": ["main_loop", "sub_loops", "eventfd", "acceptor_pool"],
+        "note": "EventLoop::stop 设置 is_stopped 并通过 eventfd 唤醒 epoll_wait。"
+      }
+    ]
+  },
+  "participants": [
+    { "id": "caller", "type": "external", "label": "停止触发者", "sublabel": "调用 stop" },
+    { "id": "echo_server", "type": "frontend", "label": "EchoServer", "sublabel": "stop()" },
+    { "id": "worker_pool", "type": "cloud", "label": "worker pool", "sublabel": "业务线程" },
+    { "id": "tcp_server", "type": "backend", "label": "TcpServer", "sublabel": "stop()" },
+    { "id": "main_loop", "type": "messagebus", "label": "main Loop", "sublabel": "listen fd" },
+    { "id": "sub_loops", "type": "messagebus", "label": "sub Loops", "sublabel": "IO loops" },
+    { "id": "eventfd", "type": "messagebus", "label": "eventfd", "sublabel": "wakeup" },
+    { "id": "acceptor_pool", "type": "cloud", "label": "acceptor pool", "sublabel": "loop threads" }
+  ],
+  "segments": [
+    { "from": 160, "to": 285, "label": "业务层停止" },
+    { "from": 305, "to": 525, "label": "Reactor 停止" },
+    { "from": 545, "to": 700, "label": "唤醒与 join" }
+  ],
+  "messages": [
+    { "id": "call-stop", "from": "caller", "to": "echo_server", "y": 180, "label": "EchoServer::stop()", "variant": "emphasis" },
+    { "id": "shutdown-worker", "from": "echo_server", "to": "worker_pool", "y": 230, "label": "ThreadPool::shutdown()", "variant": "security", "note": "stop_=true, notify_all, join worker 线程" },
+    { "id": "worker-done", "from": "worker_pool", "to": "echo_server", "y": 275, "label": "worker threads joined", "variant": "return" },
+    { "id": "tcp-stop", "from": "echo_server", "to": "tcp_server", "y": 325, "label": "tcp_server_->stop()", "variant": "emphasis" },
+    { "id": "stop-main", "from": "tcp_server", "to": "main_loop", "y": 375, "label": "main_event_loop_->stop()", "variant": "default" },
+    { "id": "main-wakeup", "from": "main_loop", "to": "eventfd", "y": 420, "label": "is_stopped=true; wakeup()", "variant": "dashed" },
+    { "id": "main-exit", "from": "eventfd", "to": "main_loop", "y": 465, "label": "epoll_wait returns; run() exits", "variant": "return" },
+    { "id": "stop-sub", "from": "tcp_server", "to": "sub_loops", "y": 515, "label": "for each sub loop: stop()", "variant": "default" },
+    { "id": "sub-wakeup", "from": "sub_loops", "to": "eventfd", "y": 560, "label": "wakeup each IO loop", "variant": "dashed" },
+    { "id": "sub-exit", "from": "eventfd", "to": "sub_loops", "y": 605, "label": "sub EventLoop::run exits", "variant": "return" },
+    { "id": "shutdown-acceptor-pool", "from": "tcp_server", "to": "acceptor_pool", "y": 640, "label": "thread_pool_->shutdown()", "variant": "security" },
+    { "id": "stop-return", "from": "tcp_server", "to": "echo_server", "y": 668, "label": "TcpServer::stop returns", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "echo_server", "from": 175, "to": 672, "type": "frontend" },
+    { "participant": "worker_pool", "from": 225, "to": 280, "type": "cloud" },
+    { "participant": "tcp_server", "from": 320, "to": 672, "type": "backend" },
+    { "participant": "main_loop", "from": 370, "to": 470, "type": "messagebus" },
+    { "participant": "eventfd", "from": 415, "to": 610, "type": "messagebus" },
+    { "participant": "sub_loops", "from": 510, "to": 610, "type": "messagebus" },
+    { "participant": "acceptor_pool", "from": 635, "to": 665, "type": "cloud" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "停止入口",
+      "items": [
+        "EchoServer::stop 是当前业务层停止入口。",
+        "它先关闭 EchoServer 自己的 worker ThreadPool，再进入 TcpServer::stop。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "事件循环退出",
+      "items": [
+        "EventLoop::stop 设置 is_stopped=true。",
+        "wakeup() 写 eventfd，唤醒可能阻塞在 epoll_wait 的线程。",
+        "EventLoop::run 的 while(!is_stopped) 条件失败后退出。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "当前边界",
+      "items": [
+        "TcpServer::stop 没有显式清理 conns_ 或逐个关闭 Connection。",
+        "ThreadPool::shutdown 会等待队列中已有任务执行完再退出。"
+      ]
+    }
+  ]
+}

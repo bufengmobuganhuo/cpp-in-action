@@ -4,7 +4,9 @@
 
 #include "include/Buffer.h"
 
-Buffer::Buffer()
+#include <cstring>
+
+Buffer::Buffer(uint64_t sep) : sep_(sep)
 {
 }
 
@@ -19,7 +21,14 @@ void Buffer::append(const char* data, size_t size)
 
 void Buffer::append_with_head(const char* data, size_t size)
 {
-    buf_.append((char*)&size, 4);
+    if (sep_ == 1)
+    {
+        buf_.append((char*)&size, 4);
+    }
+    else
+    {
+        buf_.append("\r\n\r\n");
+    }
     buf_.append(data, size);
 }
 
@@ -41,4 +50,35 @@ const char* Buffer::data() const
 void Buffer::clear()
 {
     buf_.clear();
+}
+
+bool Buffer::pick_message(std::string& target)
+{
+    if (buf_.size() == 0)
+    {
+        return false;
+    }
+    if (sep_ == 0)
+    {
+        target = buf_;
+        buf_.clear();
+    }
+    else if (sep_ == 1)
+    {
+        int msg_len;
+        memcpy(&msg_len, buf_.data(), 4);
+        if (buf_.size() < msg_len + 4)
+        {
+            return false;
+        }
+        target = buf_.substr(4, msg_len);
+        buf_.erase(0, msg_len + 4);
+    }
+    else
+    {
+        size_t header_len = strlen("\r\n\r\n");
+        target = buf_.substr(header_len);
+        buf_.clear();
+    }
+    return true;
 }

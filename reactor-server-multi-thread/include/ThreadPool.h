@@ -24,6 +24,8 @@ private:
 public:
     ThreadPool(size_t thread_num, std::string thread_name_);
     void add_task(const std::function<void()>& fn); // 添加任务
+    size_t thread_size();
+    void shutdown();
 
     ~ThreadPool();
 };

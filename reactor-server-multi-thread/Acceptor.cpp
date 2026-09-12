@@ -13,7 +13,7 @@
 #include "include/InetAddress.h"
 #include "include/Socket.h"
 
-Acceptor::Acceptor(const std::unique_ptr<EventLoop>& event_loop, const std::string& ip, uint16_t port): event_loop_(event_loop)
+Acceptor::Acceptor(EventLoop* event_loop, const std::string& ip, uint16_t port): event_loop_(event_loop)
 {
     // 创建服务端用于监听的server_socket_fd
     serv_socket_ = new Socket(create_non_blocking());

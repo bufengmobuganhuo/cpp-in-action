@@ -13,7 +13,7 @@
 #include "include/InetAddress.h"
 #include "include/Socket.h"
 
-Channel::Channel(const std::unique_ptr<EventLoop>& event_loop, int fd) : event_loop_(event_loop), fd_(fd)
+Channel::Channel(EventLoop* event_loop, int fd) : event_loop_(event_loop), fd_(fd)
 {
 }
 

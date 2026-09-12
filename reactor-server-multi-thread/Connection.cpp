@@ -14,11 +14,12 @@
 #include <utility>
 #include <memory>
 #include "include/Buffer.h"
+#include "include/EventLoop.h"
 
 
-Connection::Connection(const std::unique_ptr<EventLoop>& event_loop, std::unique_ptr<Socket> socket) :
+Connection::Connection(EventLoop* event_loop, std::unique_ptr<Socket> socket) :
 event_loop_(event_loop), client_socket_(std::move(socket)), disconnected_(false),
-client_channel_(new Channel(event_loop_, client_socket_->fd()))
+client_channel_(new Channel(event_loop_, client_socket_->fd())), timestamp_(Timestamp::now())
 {
     // 绑定处理读事件的回调函数
     client_channel_->set_read_callback(std::bind(&Connection::on_message, this));
@@ -33,6 +34,7 @@ client_channel_(new Channel(event_loop_, client_socket_->fd()))
 
 Connection::~Connection()
 {
+    printf("connection %d deconstructed\n", fd());
 }
 
 int Connection::fd() const
@@ -81,22 +83,19 @@ void Connection::on_message()
         }
         else if (bytes_read == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
         {
+            std::string message;
             while (true)
             {
-                int len;
-                memcpy(&len, input_buffer_->data(), 4); // 从input_buffer中读取数据的长度
-                if (input_buffer_->size() < len + 4) // 报文内容还未完全接收到
+                if (input_buffer_->pick_message(message) == false)
                 {
                     break;
                 }
-
-                std::string message(input_buffer_->data() + 4, len);
-                input_buffer_->erase(0, len + 4); // 清理input_buffer
 
                 printf("[EpollServer] received message (event_fd=%d: %s)\n", fd(), message.c_str());
 
                 // 处理消息
                 on_message_callback_func_(shared_from_this(), message);
+                timestamp_ = Timestamp::now();
             }
             break;
         }
@@ -134,14 +133,23 @@ void Connection::set_on_error_callback_func(std::function<void(std::shared_ptr<C
     on_error_callback_func_ = std::move(on_error_func);
 }
 
-void Connection::send(const char* data, size_t size)
+void Connection::send(std::string message, size_t size)
 {
     if (disconnected_)
     {
         return;
     }
-    output_buffer_->append_with_head(data, size);
-    client_channel_->enable_writing(); // 注册写事件
+    if (event_loop_->is_io_thread())
+    {
+        // 如果是IO线程，写入发送缓冲区
+        output_buffer_->append_with_head(message.data(), size);
+        client_channel_->enable_writing(); // 注册写事件
+    }
+    else
+    {
+        // 如果不是，则将数据发给IO线程执行
+        event_loop_->enqueue(std::bind(&Connection::send, this, message, size));
+    }
 }
 
 void Connection::write()
@@ -157,4 +165,9 @@ void Connection::write()
         client_channel_->disable_writing();
     }
     on_write_complete_callback_func_(shared_from_this());
+}
+
+bool Connection::is_idle_timeout(time_t now, int threshold)
+{
+    return now - timestamp_.to_int() > threshold;
 }

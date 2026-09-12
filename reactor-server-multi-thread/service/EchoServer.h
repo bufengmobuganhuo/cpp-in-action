@@ -25,6 +25,7 @@ namespace service
         ~EchoServer();
 
         void start();
+        void stop();
         void handle_new_connection(std::shared_ptr<Connection> conn);
         void handle_message(const std::shared_ptr<Connection>& conn, std::string& message);
         void handle_write_complete(const std::shared_ptr<Connection>& conn);

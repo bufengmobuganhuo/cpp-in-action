@@ -56,7 +56,12 @@ void ThreadPool::add_task(const std::function<void()>& fn)
     condition_variable_.notify_one();
 }
 
-ThreadPool::~ThreadPool()
+size_t ThreadPool::thread_size()
+{
+    return threads_.size();
+}
+
+void ThreadPool::shutdown()
 {
     stop_ = true;
     condition_variable_.notify_all();
@@ -64,6 +69,11 @@ ThreadPool::~ThreadPool()
     {
         thread.join(); // 等待所有任务结束后退出
     }
+}
+
+ThreadPool::~ThreadPool()
+{
+    shutdown();
 }
 
 

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reactor Server Relationships</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f7f8fb;
+      --fg: #172033;
+      --muted: #5c667a;
+      --line: #d7deea;
+      --panel: #ffffff;
+      --accent: #0f766e;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #101624;
+        --fg: #eef3ff;
+        --muted: #aeb8ca;
+        --line: #2a3548;
+        --panel: #151d2d;
+        --accent: #2dd4bf;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.55;
+    }
+    main {
+      width: min(1080px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 38px 0 48px;
+    }
+    header {
+      margin-bottom: 28px;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(30px, 4vw, 46px);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+    p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 78ch;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+      margin: 26px 0 32px;
+    }
+    a.card {
+      display: block;
+      min-height: 132px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      color: inherit;
+      text-decoration: none;
+    }
+    a.card:hover {
+      border-color: var(--accent);
+    }
+    .card strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 17px;
+    }
+    .card span {
+      display: block;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    section {
+      border-top: 1px solid var(--line);
+      padding-top: 22px;
+      margin-top: 22px;
+    }
+    h2 {
+      margin: 0 0 12px;
+      font-size: 21px;
+      letter-spacing: 0;
+    }
+    ul {
+      margin: 0;
+      padding-left: 22px;
+      color: var(--muted);
+    }
+    li + li {
+      margin-top: 6px;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.95em;
+      color: var(--fg);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Reactor Server 关系与事件路径</h1>
+      <p>这些 Archify 图表基于当前仓库中的 EchoServer、TcpServer、Acceptor、Connection、Channel 和 EventLoop 实现，分别展示类关系、连接建立、消息 echo 回复、空闲超时销毁和服务器停止路径。</p>
+    </header>
+
+    <nav class="grid" aria-label="Archify diagrams">
+      <a class="card" href="./reactor-classes.html">
+        <strong>类关系与职责</strong>
+        <span>谁持有谁、Channel 如何连接 EventLoop 与业务回调。</span>
+      </a>
+      <a class="card" href="./reactor-client-connect.html">
+        <strong>客户端连接到来</strong>
+        <span>listen fd 就绪后，从 accept_channel_ 到 Connection 的创建路径。</span>
+      </a>
+      <a class="card" href="./reactor-message-echo.html">
+        <strong>消息处理与回复</strong>
+        <span>EPOLLIN 读入、业务线程构造回复、EPOLLOUT 写出的完整链路。</span>
+      </a>
+      <a class="card" href="./reactor-idle-timeout.html">
+        <strong>空闲超时销毁</strong>
+        <span>timerfd 扫描连接表并移除 shared_ptr 的路径与风险点。</span>
+      </a>
+      <a class="card" href="./reactor-server-stop.html">
+        <strong>服务器停止</strong>
+        <span>EchoServer::stop 到 EventLoop 唤醒退出、线程池 shutdown 的停止链路。</span>
+      </a>
+    </nav>
+
+    <section>
+      <h2>关键结论</h2>
+      <ul>
+        <li><code>Acceptor::accept_channel_</code> 监听新连接；<code>Connection::client_channel_</code> 监听客户端读写和断开。</li>
+        <li><code>EventLoop</code> 不直接理解业务，只从 <code>Epoll</code> 取出 ready <code>Channel</code> 并调用 <code>Channel::handle_event()</code>。</li>
+        <li><code>TcpServer</code> 是回调桥接层：连接事件来自 Reactor，业务动作转发给 <code>EchoServer</code>。</li>
+        <li>空闲超时当前通过 erase 两级 <code>conns_</code> 释放连接，但代码没有在超时路径显式移除 <code>client_channel_</code> 的 epoll 监听。</li>
+        <li><code>EchoServer::stop()</code> 先关闭业务线程池，再通过 <code>TcpServer::stop()</code> 停止主从 <code>EventLoop</code> 和 acceptor 线程池。</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

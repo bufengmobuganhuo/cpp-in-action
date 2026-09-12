@@ -7,9 +7,21 @@
 #include "include/InetAddress.h"
 #include "include/TcpServer.h"
 #include "service/EchoServer.h"
+#include <signal.h>
+
+service::EchoServer* server;
+
+void stop(int signal)
+{
+    printf("signal=%d", signal);
+    delete server;
+    exit(0);
+}
 
 int main(int argc, char* argv[])
 {
-    service::EchoServer server(argv[1], atoi(argv[2]));
-    server.start();
+    signal(SIGTERM, stop);
+    signal(SIGINT, stop);
+    server = new service::EchoServer(argv[1], atoi(argv[2]));
+    server->start();
 }

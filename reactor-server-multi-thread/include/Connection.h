@@ -10,6 +10,7 @@
 #include <functional>
 #include <memory>
 #include <atomic>
+#include "Timestamp.h"
 
 class Connection;
 class EventLoop;
@@ -20,7 +21,7 @@ class Buffer;
 class Connection : public std::enable_shared_from_this<Connection>
 {
 private:
-    const std::unique_ptr<EventLoop>& event_loop_; // Connection对应的事件循环
+    EventLoop* event_loop_; // Connection对应的事件循环
     std::unique_ptr<Socket> client_socket_; // 与客户端通讯的socket
     std::unique_ptr<Channel> client_channel_; // Connection对应的channel
     Buffer* input_buffer_; // 接收缓冲区
@@ -30,8 +31,10 @@ private:
     std::function<void(std::shared_ptr<Connection>)> on_write_complete_callback_func_; // TcpServer的回调
     std::function<void(std::shared_ptr<Connection>)> on_disconnect_callback_func_; // TcpServer的回调
     std::function<void(std::shared_ptr<Connection>)> on_error_callback_func_; // TcpServer的回调
+
+    Timestamp timestamp_; // 上次Connection活跃的时间
 public:
-    Connection(const std::unique_ptr<EventLoop>& event_loop, std::unique_ptr<Socket> socket);
+    Connection(EventLoop* event_loop, std::unique_ptr<Socket> socket);
     ~Connection();
     int fd() const;
     std::string ip() const;
@@ -43,8 +46,9 @@ public:
     void set_on_write_complete_callback_func_(std::function<void(std::shared_ptr<Connection>)> on_write_complete_callback_func);
     void set_on_disconnect_callback_func(std::function<void(std::shared_ptr<Connection>)> on_disconnect_callback_func);
     void set_on_error_callback_func(std::function<void(std::shared_ptr<Connection>)> on_error_func);
-    void send(const char* data, size_t size); // 把要发送的数据放到发送缓冲区
+    void send(std::string message, size_t size); // 把要发送的数据放到发送缓冲区
     void write(); // 写事件准备好时，将发送缓冲区的数据发出去
+    bool is_idle_timeout(time_t now, int threshold); // 判断Connection是否空闲超时
 };
 
 #endif //REACTOR_SERVER_CONNECTION_H

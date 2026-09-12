@@ -20,7 +20,7 @@ class Channel
 {
 private:
     int fd_ = -1; // channel和fd一一对应
-    const std::unique_ptr<EventLoop>& event_loop_; // Channel对应的Epoll实例，二者同样一一对应
+    EventLoop* event_loop_; // Channel对应的Epoll实例，二者同样一一对应
     bool in_epoll_ = false; // Channel是否已添加到Epoll实例，如果未添加，调用epoll_ctl()时使用ADD指令，否则用MOD指令
     uint32_t events_ = 0; // fd_需要监视的事件，serv_fd/client_fd需要监听EPOLLIN事件，client_fd还需要监听EPOLLOUT事件
     uint32_t ready_events_ = 0; // 已经就绪的事件
@@ -29,7 +29,7 @@ private:
     std::function<void()> disconnect_callback_; // 连接关闭的回调
     std::function<void()> error_callback_;
 public:
-    Channel(const std::unique_ptr<EventLoop>& epoll, int fd);
+    Channel(EventLoop* epoll, int fd);
     ~Channel();
 
     int fd() const;

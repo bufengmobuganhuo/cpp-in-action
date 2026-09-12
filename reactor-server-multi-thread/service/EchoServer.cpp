@@ -36,6 +36,12 @@ namespace service
         tcp_server_->start();
     }
 
+    void EchoServer::stop()
+    {
+        thread_pool_->shutdown();
+        tcp_server_->stop();
+    }
+
     void EchoServer::handle_new_connection(std::shared_ptr<Connection> conn)
     {
         std::cout << "[EchoServer] New Connection..., thread is " << syscall(SYS_gettid) << std::endl;
@@ -44,10 +50,16 @@ namespace service
     void EchoServer::handle_message(const std::shared_ptr<Connection>& conn, std::string& message)
     {
         printf("[EchoServer] handle_message thread is %ld\n", syscall(SYS_gettid));
+        // if (thread_pool_->thread_size() == 0) // 如果没有工作线程，则直接使用IO线程执行
+        // {
+        //     std::string replay = "reply: " + message;
+        //     conn->send(replay, replay.size());
+        //     return;
+        // }
         thread_pool_->add_task([conn, message]
         {
             std::string replay = "reply: " + message;
-            conn->send(replay.data(), replay.size());
+            conn->send(replay, replay.size());
         });
     }
 

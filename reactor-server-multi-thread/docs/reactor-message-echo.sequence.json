@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "客户端消息与 Echo 回复路径",
+    "locale": "zh-CN",
+    "output": "docs/reactor-message-echo.html",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 920],
+    "column_fit": "spread",
+    "views": [
+      {
+        "id": "read-path",
+        "label": "读路径",
+        "focus": ["client", "sub_loop", "client_channel", "connection", "tcp_server"],
+        "note": "client_channel_ 的 EPOLLIN 触发 Connection::on_message。"
+      },
+      {
+        "id": "business-path",
+        "label": "业务处理",
+        "focus": ["tcp_server", "echo_server", "worker_pool", "connection"],
+        "note": "EchoServer 把回复构造放入 worker ThreadPool。"
+      },
+      {
+        "id": "write-path",
+        "label": "写路径",
+        "focus": ["worker_pool", "connection", "sub_loop", "client_channel", "client"],
+        "note": "非 IO 线程调用 send 会 enqueue 到对应 EventLoop。"
+      }
+    ]
+  },
+  "participants": [
+    { "id": "client", "type": "external", "label": "客户端", "sublabel": "length + body" },
+    { "id": "sub_loop", "type": "messagebus", "label": "sub Loop", "sublabel": "IO thread" },
+    { "id": "client_channel", "type": "messagebus", "label": "client ch", "sublabel": "client fd" },
+    { "id": "connection", "type": "backend", "label": "Connection", "sublabel": "input/output Buffer" },
+    { "id": "buffers", "type": "database", "label": "Buffer", "sublabel": "input/output" },
+    { "id": "tcp_server", "type": "backend", "label": "TcpServer", "sublabel": "callback bridge" },
+    { "id": "echo_server", "type": "frontend", "label": "EchoServer", "sublabel": "handle_message" },
+    { "id": "worker_pool", "type": "cloud", "label": "workers", "sublabel": "业务任务" }
+  ],
+  "segments": [
+    { "from": 165, "to": 400, "label": "读事件与解包" },
+    { "from": 420, "to": 590, "label": "业务回调" },
+    { "from": 620, "to": 835, "label": "跨线程发送" }
+  ],
+  "messages": [
+    { "id": "client-write", "from": "client", "to": "sub_loop", "y": 185, "label": "发送 len + message", "variant": "emphasis" },
+    { "id": "ready-client-channel", "from": "sub_loop", "to": "client_channel", "y": 230, "label": "ready EPOLLIN", "variant": "default" },
+    { "id": "dispatch-read", "from": "client_channel", "to": "connection", "y": 275, "label": "read_callback_: Connection::on_message", "variant": "emphasis" },
+    { "id": "read-loop", "from": "connection", "to": "buffers", "y": 325, "label": "read(fd) until EAGAIN; append input_buffer_", "variant": "default" },
+    { "id": "decode-frame", "from": "buffers", "to": "connection", "y": 375, "label": "读取 4 字节长度并取完整报文", "variant": "return" },
+    { "id": "connection-callback", "from": "connection", "to": "tcp_server", "y": 430, "label": "on_message_callback_func_(conn, message)", "variant": "emphasis" },
+    { "id": "server-forward", "from": "tcp_server", "to": "echo_server", "y": 485, "label": "handle_message_callback_func_(conn, message)", "variant": "emphasis" },
+    { "id": "submit-task", "from": "echo_server", "to": "worker_pool", "y": 540, "label": "add_task: reply = \"reply: \" + message", "variant": "dashed" },
+    { "id": "worker-send", "from": "worker_pool", "to": "connection", "y": 635, "label": "conn->send(reply, size)", "variant": "emphasis" },
+    { "id": "enqueue-io", "from": "connection", "to": "sub_loop", "y": 685, "label": "enqueue(send) + wakeup", "variant": "dashed" },
+    { "id": "enable-write", "from": "connection", "to": "client_channel", "y": 735, "label": "enable_writing", "variant": "emphasis" },
+    { "id": "ready-out", "from": "sub_loop", "to": "client_channel", "y": 770, "label": "ready EPOLLOUT", "variant": "default" },
+    { "id": "write-callback", "from": "client_channel", "to": "connection", "y": 806, "label": "write()", "variant": "emphasis" },
+    { "id": "send-reply", "from": "connection", "to": "client", "y": 836, "label": "send reply", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "sub_loop", "from": 180, "to": 235, "type": "messagebus" },
+    { "participant": "client_channel", "from": 225, "to": 280, "type": "messagebus" },
+    { "participant": "connection", "from": 270, "to": 435, "type": "backend" },
+    { "participant": "buffers", "from": 320, "to": 382, "type": "database" },
+    { "participant": "tcp_server", "from": 425, "to": 490, "type": "backend" },
+    { "participant": "echo_server", "from": 480, "to": 545, "type": "frontend" },
+    { "participant": "worker_pool", "from": 535, "to": 640, "type": "cloud" },
+    { "participant": "sub_loop", "from": 680, "to": 815, "type": "messagebus" },
+    { "participant": "connection", "from": 780, "to": 842, "type": "backend" },
+    { "participant": "client_channel", "from": 780, "to": 834, "type": "messagebus" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "读事件",
+      "items": [
+        "EPOLLIN 最终进入 Connection::on_message。",
+        "边缘触发模式下持续 read，直到 EAGAIN/EWOULDBLOCK。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "回复写出",
+      "items": [
+        "worker 线程不能直接改 IO 线程状态，send 会 enqueue 回连接所属 EventLoop。",
+        "IO 线程把数据写入 output_buffer_ 后开启 EPOLLOUT。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "完成回调",
+      "items": [
+        "Connection::write 清空发送缓冲后 disable_writing。",
+        "随后调用 TcpServer::on_write_complete，再到 EchoServer::handle_write_complete。"
+      ]
+    }
+  ]
+}

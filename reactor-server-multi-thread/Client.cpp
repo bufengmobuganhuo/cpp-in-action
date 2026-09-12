@@ -55,6 +55,6 @@ int main(int argc, char* argv[])
         recv(sock, buffer, len, 0); // 读取报文内容
         printf("recv: %s\n", buffer);
     }
-    close(sock);
     sleep(100);
+    close(sock);
 }

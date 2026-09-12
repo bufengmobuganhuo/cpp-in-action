@@ -32,7 +32,9 @@ add_executable(netserver Server.cpp
         include/ThreadPool.h
         ThreadPool.cpp
         include/ThreadPool.h
-        ThreadPool.cpp)
+        ThreadPool.cpp
+        include/Timestamp.h
+        Timestamp.cpp)
 add_executable(netclient Client.cpp
         InetAddress.cpp
         include/InetAddress.h

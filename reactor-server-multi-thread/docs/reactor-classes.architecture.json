@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Reactor Server Class Relationships",
+    "locale": "zh-CN",
+    "output": "docs/reactor-classes.html",
+    "quality_profile": "showcase",
+    "viewBox": [1120, 700],
+    "views": [
+      {
+        "id": "ownership",
+        "label": "对象归属",
+        "focus": ["echo_server", "tcp_server", "main_loop", "acceptor", "sub_loop", "connection"],
+        "note": "TcpServer 管理主从 EventLoop、Acceptor 和连接表。"
+      },
+      {
+        "id": "event_dispatch",
+        "label": "事件分发",
+        "focus": ["epoll", "main_loop", "acceptor_channel", "client_channel", "connection"],
+        "note": "EventLoop 取出 ready Channel，再由 Channel 调用绑定回调。"
+      },
+      {
+        "id": "business_callbacks",
+        "label": "业务回调",
+        "focus": ["echo_server", "tcp_server", "connection", "worker_pool"],
+        "note": "EchoServer 只注册业务回调，真正的 fd 事件由 Reactor 层驱动。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "echo_server",
+      "type": "frontend",
+      "label": "EchoServer",
+      "sublabel": "注册业务回调",
+      "tag": "service",
+      "pos": [50, 95],
+      "size": [150, 76]
+    },
+    {
+      "id": "tcp_server",
+      "type": "backend",
+      "label": "TcpServer",
+      "sublabel": "主从 Reactor + conns_",
+      "tag": "orchestrator",
+      "pos": [315, 95],
+      "size": [175, 78]
+    },
+    {
+      "id": "main_loop",
+      "type": "messagebus",
+      "label": "main EventLoop",
+      "sublabel": "监听 accept_channel_",
+      "tag": "is_main_loop=true",
+      "pos": [590, 95],
+      "size": [165, 76]
+    },
+    {
+      "id": "acceptor",
+      "type": "backend",
+      "label": "Acceptor",
+      "sublabel": "listen/accept",
+      "tag": "server fd",
+      "pos": [860, 95],
+      "size": [150, 76]
+    },
+    {
+      "id": "acceptor_channel",
+      "type": "messagebus",
+      "label": "accept_channel_",
+      "sublabel": "EPOLLIN -> Acceptor::new_connection",
+      "pos": [845, 265],
+      "size": [180, 76]
+    },
+    {
+      "id": "epoll",
+      "type": "cloud",
+      "label": "Epoll",
+      "sublabel": "epoll_wait 返回 Channel*",
+      "pos": [590, 265],
+      "size": [165, 76]
+    },
+    {
+      "id": "sub_loop",
+      "type": "messagebus",
+      "label": "sub EventLoop",
+      "sublabel": "连接读写 + timerfd",
+      "tag": "IO thread",
+      "pos": [315, 430],
+      "size": [175, 78]
+    },
+    {
+      "id": "connection",
+      "type": "backend",
+      "label": "Connection",
+      "sublabel": "client socket + buffers",
+      "tag": "shared_ptr",
+      "pos": [590, 430],
+      "size": [165, 78]
+    },
+    {
+      "id": "client_channel",
+      "type": "messagebus",
+      "label": "client_channel_",
+      "sublabel": "EPOLLIN / EPOLLOUT / RDHUP",
+      "pos": [845, 430],
+      "size": [180, 78]
+    },
+    {
+      "id": "worker_pool",
+      "type": "cloud",
+      "label": "worker ThreadPool",
+      "sublabel": "业务处理后调用 send",
+      "pos": [50, 430],
+      "size": [150, 78]
+    }
+  ],
+  "connections": [
+    { "id": "echo-config", "from": "echo_server", "to": "tcp_server", "label": "set_*_callback", "variant": "emphasis" },
+    { "id": "tcp-main", "from": "tcp_server", "to": "main_loop", "variant": "default" },
+    { "id": "tcp-acceptor", "from": "tcp_server", "to": "acceptor", "label": "bind accept", "variant": "emphasis", "fromSide": "top", "toSide": "top", "via": [[402.5, 58], [935, 58]], "labelDy": -10 },
+    { "id": "acceptor-channel", "from": "acceptor", "to": "acceptor_channel", "variant": "default", "fromSide": "bottom", "toSide": "top" },
+    { "id": "loop-epoll", "from": "main_loop", "to": "epoll", "variant": "default", "fromSide": "bottom", "toSide": "top" },
+    { "id": "ready-accept", "from": "epoll", "to": "acceptor_channel", "label": "ready EPOLLIN", "variant": "emphasis" },
+    { "id": "tcp-sub", "from": "tcp_server", "to": "sub_loop", "variant": "default", "fromSide": "bottom", "toSide": "top" },
+    { "id": "tcp-conn", "from": "tcp_server", "to": "connection", "label": "make_shared by fd % thread_num", "variant": "emphasis", "fromSide": "bottom", "toSide": "top" },
+    { "id": "conn-channel", "from": "connection", "to": "client_channel", "label": "client fd Channel", "variant": "default" },
+    { "id": "sub-conn", "from": "sub_loop", "to": "connection", "label": "keeps conns_", "variant": "default" },
+    { "id": "worker-send", "from": "worker_pool", "to": "connection", "label": "conn->send", "variant": "dashed", "fromSide": "bottom", "toSide": "bottom", "via": [[125, 560], [672.5, 560]], "labelDy": 18 }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "事件监听者",
+      "items": [
+        "Acceptor 的 accept_channel_ 监听服务端 listen fd 的 EPOLLIN。",
+        "Connection 的 client_channel_ 监听客户端 fd 的 EPOLLIN、EPOLLOUT 和 RDHUP。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "回调桥接",
+      "items": [
+        "Channel 只知道 ready event 和无参回调。",
+        "TcpServer 把 Connection 回调继续转发给 EchoServer 的业务函数。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "线程模型",
+      "items": [
+        "主 EventLoop 在 TcpServer::start 中运行。",
+        "子 EventLoop 在线程池中运行，连接按 fd % thread_num_ 分配。"
+      ]
+    }
+  ]
+}

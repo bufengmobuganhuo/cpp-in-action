@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "连接空闲超时与销毁路径",
+    "locale": "zh-CN",
+    "output": "docs/reactor-idle-timeout.html",
+    "quality_profile": "showcase",
+    "viewBox": [1040, 720],
+    "views": [
+      {
+        "id": "active-refresh",
+        "label": "活跃刷新",
+        "focus": ["created", "readable", "active"],
+        "note": "完整报文被处理后 timestamp_ 更新。"
+      },
+      {
+        "id": "timer-scan",
+        "label": "定时扫描",
+        "focus": ["active", "timer_ready", "scan", "expired"],
+        "note": "timerfd 触发 sub EventLoop::handle_timer。"
+      },
+      {
+        "id": "remove-path",
+        "label": "移除路径",
+        "focus": ["expired", "erase_maps", "destroyed", "risk"],
+        "note": "当前代码只 erase shared_ptr，没有显式 remove client_channel_。"
+      }
+    ]
+  },
+  "lanes": [
+    { "id": "main", "label": "Connection phases" },
+    { "id": "events", "label": "Timer and removal events" },
+    { "id": "terminal", "label": "Outcomes" }
+  ],
+  "states": [
+    {
+      "id": "created",
+      "type": "start",
+      "label": "Created",
+      "sublabel": "TcpServer 创建 Connection",
+      "lane": "main",
+      "col": 0,
+      "step": "01",
+      "tag": "shared_ptr"
+    },
+    {
+      "id": "readable",
+      "type": "active",
+      "label": "Readable",
+      "sublabel": "Connection::on_message",
+      "lane": "main",
+      "col": 1,
+      "step": "02",
+      "tag": "EPOLLIN"
+    },
+    {
+      "id": "active",
+      "type": "waiting",
+      "label": "Active/Idle",
+      "sublabel": "timestamp_ 最近活跃",
+      "lane": "main",
+      "col": 2,
+      "step": "03",
+      "tag": "idle clock"
+    },
+    {
+      "id": "scan",
+      "type": "decision",
+      "label": "Scan conns_",
+      "sublabel": "now - timestamp_ > 10",
+      "lane": "main",
+      "col": 3,
+      "step": "04",
+      "tag": "timer check"
+    },
+    {
+      "id": "expired",
+      "type": "decision",
+      "label": "Idle Timeout",
+      "sublabel": "fd_to_erase",
+      "lane": "main",
+      "col": 4,
+      "step": "05",
+      "tag": "expired"
+    },
+    {
+      "id": "timer_ready",
+      "type": "active",
+      "label": "timerfd Ready",
+      "sublabel": "timer_channel_ read cb",
+      "lane": "events",
+      "col": 0,
+      "tag": "handle_timer"
+    },
+    {
+      "id": "erase_maps",
+      "type": "active",
+      "label": "Erase conns_",
+      "sublabel": "sub map + TcpServer map",
+      "lane": "events",
+      "col": 2,
+      "tag": "release refs"
+    },
+    {
+      "id": "risk",
+      "type": "failure",
+      "label": "Stale Channel risk",
+      "sublabel": "未显式 remove_channel",
+      "lane": "terminal",
+      "col": 1,
+      "tag": "risk"
+    },
+    {
+      "id": "destroyed",
+      "type": "success",
+      "label": "Destroyed",
+      "sublabel": "shared_ptr 引用归零",
+      "lane": "terminal",
+      "col": 2,
+      "tag": "terminal"
+    }
+  ],
+  "transitions": [
+    { "id": "create-to-readable", "from": "created", "to": "readable", "variant": "emphasis" },
+    { "id": "readable-active", "from": "readable", "to": "active", "variant": "default" },
+    { "id": "active-timer", "from": "active", "to": "timer_ready", "variant": "default", "route": "straight", "fromSide": "bottom", "toSide": "top" },
+    { "id": "timer-scan", "from": "timer_ready", "to": "scan", "variant": "emphasis" },
+    { "id": "scan-expired", "from": "scan", "to": "expired", "variant": "security" },
+    { "id": "expired-erase", "from": "expired", "to": "erase_maps", "variant": "security", "route": "straight", "fromSide": "bottom", "toSide": "top" },
+    { "id": "erase-destroyed", "from": "erase_maps", "to": "destroyed", "variant": "emphasis", "route": "straight", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "空闲判断依据",
+      "items": [
+        "Connection::is_idle_timeout 使用 timestamp_ 和阈值比较。",
+        "timestamp_ 只在 on_message 解析到完整报文后更新。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "销毁触发",
+      "items": [
+        "sub EventLoop 先 erase 自己的 conns_。",
+        "随后通过 on_remove_conn_callback_func_ 让 TcpServer erase 全局 conns_。"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "当前实现风险",
+      "items": [
+        "超时路径没有显式移除 client_channel_ 的 epoll 监听。",
+        "handle_timer 重设 timerfd，但没有 read timerfd counter，后续可能持续就绪。"
+      ]
+    }
+  ]
+}
