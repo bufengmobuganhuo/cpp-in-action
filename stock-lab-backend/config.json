@@ -1,0 +1,36 @@
+{
+  "db_clients": [
+    {
+      "name": "default",
+      "rdbms": "mysql",
+      "host": "127.0.0.1",
+      "port": 3306,
+      "dbname": "stock_lab",
+      "user": "root",
+      "passwd": "zy?2526818",
+      "is_fast": false,
+      "number_of_connections": 3,
+      "timeout": -1.0
+    }
+  ],
+  "app": {
+    "number_of_threads": 1,
+    "enable_session": false,
+    "client_max_body_size": "1M",
+    "client_max_memory_body_size": "64K",
+    "log": {
+      "use_spdlog": false,
+      "log_level": "DEBUG"
+    }
+  },
+  "custom_config": {
+    "app_name": "Stock Lab",
+    "mail": {
+      "from": "support@mengyv.com",
+      "verify_code_template": "../templates/email/code.html"
+    },
+    "resend": {
+      "api_key": "re_VWCu1XGu_6zM4b5oPp7cJTqkUUiepvGnv"
+    }
+  }
+}
