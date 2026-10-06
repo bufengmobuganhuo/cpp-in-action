@@ -1,6 +1,6 @@
 #include "UserCtrl.h"
 
-using namespace users;
+using namespace controller;
 
 // Add definition of your processing function here
 void UserCtrl::send_verify_code(const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& callback, dto::LoginDto&& login_dto)

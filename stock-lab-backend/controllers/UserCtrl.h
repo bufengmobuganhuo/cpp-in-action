@@ -8,7 +8,7 @@
 
 using namespace drogon;
 
-namespace users
+namespace controller
 {
 class UserCtrl : public drogon::HttpController<UserCtrl>
 {

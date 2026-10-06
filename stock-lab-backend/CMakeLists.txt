@@ -35,6 +35,10 @@ add_executable(${PROJECT_NAME} main.cc
         repositories/UserRepository.cpp
         repositories/UserRepository.h
         dots/loginRespDto.h
+        services/ContractService.cpp
+        services/ContractService.h
+        dots/ContractSearchResp.h
+        dots/Contract.h
 )
 
 # ##############################################################################
