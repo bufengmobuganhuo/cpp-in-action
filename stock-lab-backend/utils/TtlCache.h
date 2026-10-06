@@ -83,7 +83,7 @@ namespace util
         TtlCache(const TtlCache&) = delete;
         TtlCache &operator=(const TtlCache&) = delete;
 
-        void put(const Key &key, const Value &value, std::chrono::seconds ttl)
+        void put(const Key &key, const Value &value, std::chrono::seconds ttl = std::chrono::seconds{60})
         {
             std::lock_guard<std::mutex> lock(mutex_);
             data_[key] = Entry

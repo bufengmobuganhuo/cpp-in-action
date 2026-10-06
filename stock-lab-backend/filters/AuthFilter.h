@@ -8,7 +8,7 @@
 
 #include <drogon/HttpFilter.h>
 
-namespace filters
+namespace filter
 {
     class AuthFilter : public drogon::HttpFilter<AuthFilter>
     {

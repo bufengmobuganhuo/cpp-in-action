@@ -33,8 +33,9 @@
       "api_key": "re_VWCu1XGu_6zM4b5oPp7cJTqkUUiepvGnv"
     },
     "finnhub": {
-      "search_url": "https://finnhub.io",
+      "url": "https://finnhub.io",
       "search_path": "/api/v1/search",
+      "quote_path": "/api/v1/quote",
       "token": "d484hcpr01qk80bjd1j0d484hcpr01qk80bjd1jg"
     }
   }

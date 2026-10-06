@@ -9,7 +9,7 @@
 #include "dots/JsonResult.h"
 #include "utils/JwtUtils.h"
 
-namespace filters
+namespace filter
 {
     void AuthFilter::doFilter(const drogon::HttpRequestPtr& req, drogon::FilterCallback&& fcb, drogon::FilterChainCallback&& fccb)
     {

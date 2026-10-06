@@ -33,7 +33,7 @@ std::optional<dto::Contract> service::ContractService::get_by_symbol(const std::
 
 std::string service::ContractService::get_contract_search_url()
 {
-    return drogon::app().getCustomConfig()["finnhub"]["search_url"].asString();
+    return drogon::app().getCustomConfig()["finnhub"]["url"].asString();
 }
 
 std::string service::ContractService::get_contract_search_path()

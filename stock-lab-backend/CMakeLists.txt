@@ -39,6 +39,18 @@ add_executable(${PROJECT_NAME} main.cc
         services/ContractService.h
         dots/ContractSearchResp.h
         dots/Contract.h
+        services/PositionSnapshotService.cpp
+        services/PositionSnapshotService.h
+        repositories/PositionSnapshotRepository.cpp
+        repositories/PositionSnapshotRepository.h
+        enums/PositionStatus.h
+        repositories/TransactionRecordRepository.cpp
+        repositories/TransactionRecordRepository.h
+        vo/PositionSnapshotDetailVo.h
+        utils/Math.h
+        services/QuoteService.cpp
+        services/QuoteService.h
+        dots/Quote.h
 )
 
 # ##############################################################################
@@ -50,8 +62,10 @@ add_executable(${PROJECT_NAME} main.cc
 # and comment out the following lines
 find_package(Drogon CONFIG REQUIRED)
 find_package(jwt-cpp CONFIG REQUIRED)
+find_package(Boost REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE Drogon::Drogon)
 target_link_libraries(${PROJECT_NAME} PRIVATE jwt-cpp::jwt-cpp)
+target_link_libraries(${PROJECT_NAME} PRIVATE Boost::headers)
 
 # ##############################################################################
 
