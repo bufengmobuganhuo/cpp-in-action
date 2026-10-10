@@ -2,6 +2,7 @@
 
 #include <drogon/HttpController.h>
 
+#include "BaseCtrl.h"
 #include "services/ContractService.h"
 
 using namespace drogon;

@@ -5,12 +5,14 @@
 #pragma once
 #include <drogon/orm/Exception.h>
 
+#include "BaseRepository.h"
+
 namespace repository
 {
-    class TransactionRecordRepository
+    class TransactionRecordRepository : public BaseRepository
     {
     public:
-        void delete_by_symbol(const std::string& symbol, int64_t user_id,
+        static void delete_by_symbol(const std::string& symbol, int64_t user_id,
                               std::function<void()> on_success,
                               std::function<void(const drogon::orm::DrogonDbException &)> on_error);
     };

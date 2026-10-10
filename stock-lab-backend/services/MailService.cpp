@@ -76,6 +76,71 @@ void service::MailService::send_verify_code_email(const std::string& email, int 
     );
 }
 
+void service::MailService::send_transaction_plan_remind_email(
+    const std::string& email,
+    const TransactionPlanReminderEmail& reminder,
+    Callback callback) const
+{
+    const std::string api_key = get_resend_api_key();
+    const std::string from = get_mail_from();
+    const std::string app_name = get_app_name();
+
+    if (api_key.empty() || from.empty())
+    {
+        LOG_ERROR << "resend api key or mail from is empty";
+        callback(false);
+        return;
+    }
+
+    Json::Value body;
+    body["from"] = from;
+    body["to"].append(email);
+    body["subject"] = "【" + app_name + "】定投提醒 - " + reminder.symbol;
+
+    const std::string html = build_transaction_remind_html(reminder);
+    if (html.empty())
+    {
+        LOG_ERROR << "transaction remind email html is empty";
+        callback(false);
+        return;
+    }
+    body["html"] = html;
+
+    auto req = drogon::HttpRequest::newHttpJsonRequest(body);
+    req->setMethod(drogon::Post);
+    req->setPath("/emails");
+    req->addHeader("Authorization", "Bearer " + api_key);
+    req->addHeader("Content-Type", "application/json");
+
+    auto client = drogon::HttpClient::newHttpClient("https://api.resend.com");
+
+    client->sendRequest(
+        req,
+        [callback = std::move(callback), email, plan_symbol = reminder.symbol](
+            drogon::ReqResult result,
+            const drogon::HttpResponsePtr &resp
+        ) mutable
+        {
+            if (result != drogon::ReqResult::Ok || resp == nullptr)
+            {
+                LOG_ERROR << "failed to call resend, result=" << static_cast<int>(result);
+                callback(false);
+                return;
+            }
+            const auto status = resp->getStatusCode();
+            if (status < drogon::k200OK || status >= drogon::k300MultipleChoices)
+            {
+                LOG_ERROR << "resend returned non-2xx, status=" << status << ", body=" << resp->getBody();
+                callback(false);
+                return;
+            }
+
+            LOG_INFO << "sent transaction remind email, email=" << email << ", symbol=" << plan_symbol;
+            callback(true);
+        }
+    );
+}
+
 std::string service::MailService::get_resend_api_key() const
 {
     return drogon::app().getCustomConfig()["resend"]["api_key"].asString();
@@ -98,6 +163,12 @@ std::string service::MailService::get_verify_code_template_path() const
     return path.empty() ? "../templates/email/code.html" : path;
 }
 
+std::string service::MailService::get_transaction_remind_template_path() const
+{
+    auto path = drogon::app().getCustomConfig()["mail"]["transaction_remind_template"].asString();
+    return path.empty() ? "../templates/email/transaction-remind.html" : path;
+}
+
 std::string service::MailService::build_verify_code_html(int verify_code) const
 {
     std::string html = load_template(get_verify_code_template_path());
@@ -108,6 +179,29 @@ std::string service::MailService::build_verify_code_html(int verify_code) const
 
     replace_all(html, "{{appName}}", get_app_name());
     replace_all(html, "{{code}}", std::to_string(verify_code));
+    replace_all(html, "{{year}}", current_year());
+    return html;
+}
+
+std::string service::MailService::build_transaction_remind_html(const TransactionPlanReminderEmail& email) const
+{
+    std::string html = load_template(get_transaction_remind_template_path());
+    if (html.empty())
+    {
+        return {};
+    }
+
+    replace_all(html, "{{symbol}}", escape_html(email.symbol));
+    replace_all(html, "{{amount}}", escape_html(email.amount));
+    replace_all(html, "{{frequencyDesc}}", escape_html(email.frequency_desc));
+    replace_all(html, "{{totalInvestTimes}}", escape_html(email.total_invest_times));
+    replace_all(html, "{{totalInvestAmount}}", escape_html(email.total_invest_amount));
+    replace_all(
+        html,
+        "{{targetTotalValue}}",
+        email.target_total_value.has_value() ? "$" + escape_html(email.target_total_value.value()) : "未设置"
+    );
+    replace_all(html, "{{appName}}", escape_html(get_app_name()));
     replace_all(html, "{{year}}", current_year());
     return html;
 }
@@ -151,4 +245,35 @@ void service::MailService::replace_all(std::string& text, const std::string& fro
         text.replace(pos, from.length(), to);
         pos += to.length();
     }
+}
+
+std::string service::MailService::escape_html(const std::string& text)
+{
+    std::string escaped;
+    escaped.reserve(text.size());
+    for (const char ch : text)
+    {
+        switch (ch)
+        {
+        case '&':
+            escaped += "&amp;";
+            break;
+        case '<':
+            escaped += "&lt;";
+            break;
+        case '>':
+            escaped += "&gt;";
+            break;
+        case '"':
+            escaped += "&quot;";
+            break;
+        case '\'':
+            escaped += "&#39;";
+            break;
+        default:
+            escaped += ch;
+            break;
+        }
+    }
+    return escaped;
 }

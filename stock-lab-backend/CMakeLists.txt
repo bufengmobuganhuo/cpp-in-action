@@ -47,10 +47,29 @@ add_executable(${PROJECT_NAME} main.cc
         repositories/TransactionRecordRepository.cpp
         repositories/TransactionRecordRepository.h
         vo/PositionSnapshotDetailVo.h
+        vo/TransactionPlanVo.h
         utils/Math.h
         services/QuoteService.cpp
         services/QuoteService.h
         dots/Quote.h
+        services/TransactionPlanService.cpp
+        services/TransactionPlanService.h
+        dots/TransactionPlanDto.h
+        enums/TransactionPlanStatus.h
+        repositories/TransactionPlanRepository.cpp
+        repositories/TransactionPlanRepository.h
+        dots/PageResult.h
+        repositories/BaseRepository.h
+        utils/CronUtil.h
+        utils/CronUtil.cpp
+        services/SchedulerService.cpp
+        services/SchedulerService.h
+        services/TransactionRecordService.cpp
+        services/TransactionRecordService.h
+        dots/TransactionStatisticsVo.h
+        controllers/BaseCtrl.cpp
+        controllers/BaseCtrl.h
+        enums/TransactionPlanFrequency.h
 )
 
 # ##############################################################################
@@ -63,6 +82,8 @@ add_executable(${PROJECT_NAME} main.cc
 find_package(Drogon CONFIG REQUIRED)
 find_package(jwt-cpp CONFIG REQUIRED)
 find_package(Boost REQUIRED)
+find_package(croncpp CONFIG REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE croncpp::croncpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE Drogon::Drogon)
 target_link_libraries(${PROJECT_NAME} PRIVATE jwt-cpp::jwt-cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE Boost::headers)

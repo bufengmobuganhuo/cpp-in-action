@@ -8,8 +8,7 @@
 
 std::optional<drogon_model::stock_lab::User> repository::UserRepository::selectByEmail(const std::string& email)
 {
-    auto db_client = drogon::app().getDbClient();
-    drogon::orm::Mapper<drogon_model::stock_lab::User> mapper(db_client);
+    auto mapper = make_mapper<drogon_model::stock_lab::User>();
     std::vector<drogon_model::stock_lab::User> vector = mapper.findBy(
         drogon::orm::Criteria(
                 drogon_model::stock_lab::User::Cols::_email,
@@ -22,7 +21,6 @@ std::optional<drogon_model::stock_lab::User> repository::UserRepository::selectB
 
 void repository::UserRepository::insert(drogon_model::stock_lab::User& user)
 {
-    auto db_client = drogon::app().getDbClient();
-    drogon::orm::Mapper<drogon_model::stock_lab::User> mapper(db_client);
+    auto mapper = make_mapper<drogon_model::stock_lab::User>();
     mapper.insert(user);
 }

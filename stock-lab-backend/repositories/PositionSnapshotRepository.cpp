@@ -6,6 +6,8 @@
 
 #include <drogon/HttpAppFramework.h>
 
+#include <utility>
+
 #include "dots/LoginDto.h"
 
 void respository::PositionSnapshotRepository::select_by_user_id(int64_t user_id,
@@ -16,8 +18,7 @@ void respository::PositionSnapshotRepository::select_by_user_id(int64_t user_id,
                                                                 on_success,
                                                                 std::function<void(const drogon::orm::DrogonDbException &)> on_error)
 {
-    auto db_client = drogon::app().getDbClient();
-    drogon::orm::Mapper<drogon_model::stock_lab::PositionSnapshot> mapper(db_client);
+    auto mapper = make_mapper<drogon_model::stock_lab::PositionSnapshot>();
     mapper.findBy(
         drogon::orm::Criteria(
             drogon_model::stock_lab::PositionSnapshot::Cols::_user_id,
@@ -32,7 +33,7 @@ void respository::PositionSnapshotRepository::select_by_user_id(int64_t user_id,
         [on_success = std::move(on_success)](
         std::vector<drogon_model::stock_lab::PositionSnapshot> rows)
         {
-            on_success(rows);
+            on_success(std::move(rows));
         },
         [on_error = std::move(on_error)](const drogon::orm::DrogonDbException& e)
         {
@@ -45,8 +46,7 @@ void respository::PositionSnapshotRepository::delete_by_symbol(const std::string
                                                                std::function<void()> on_success,
                                                                std::function<void(const drogon::orm::DrogonDbException &)> on_error)
 {
-    auto db_client = drogon::app().getDbClient();
-    drogon::orm::Mapper<drogon_model::stock_lab::PositionSnapshot> mapper(db_client);
+    auto mapper = make_mapper<drogon_model::stock_lab::PositionSnapshot>();
     mapper.deleteBy(
         drogon::orm::Criteria(
             drogon_model::stock_lab::PositionSnapshot::Cols::_user_id,

@@ -6,14 +6,15 @@
 #include <optional>
 #include <string>
 
+#include "BaseRepository.h"
 #include "ModelAliases.h"
 
 namespace repository
 {
-    class UserRepository
+    class UserRepository : public BaseRepository
     {
     public:
-        std::optional<drogon_model::stock_lab::User> selectByEmail(const std::string& email);
-        void insert(drogon_model::stock_lab::User &user);
+        static std::optional<drogon_model::stock_lab::User> selectByEmail(const std::string& email);
+        static void insert(drogon_model::stock_lab::User &user);
     };
 }

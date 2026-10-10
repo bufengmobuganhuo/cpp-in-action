@@ -8,13 +8,15 @@
 #include <string>
 #include <drogon/orm/Exception.h>
 
+#include "BaseRepository.h"
+
 namespace repository
 {
-    class EmailWhitelistRepository
+    class EmailWhitelistRepository : public BaseRepository
     {
     public:
         using ExistsCallback = std::function<void(bool)>;
-        void exists_by_email(const std::string &email, ExistsCallback on_success, std::function<void(const drogon::orm::DrogonDbException &)> on_error) const;
+        static void exists_by_email(const std::string &email, ExistsCallback on_success, std::function<void(const drogon::orm::DrogonDbException &)> on_error) ;
     };
 }
 #endif //STOCK_LAB_BACKEND_EMAILREPOSITORY_H

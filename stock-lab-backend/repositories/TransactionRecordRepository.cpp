@@ -11,8 +11,7 @@
 void repository::TransactionRecordRepository::delete_by_symbol(const std::string& symbol, int64_t user_id,
                                                                std::function<void()> on_success, std::function<void(const drogon::orm::DrogonDbException&)> on_error)
 {
-    auto db_client = drogon::app().getDbClient();
-    drogon::orm::Mapper<drogon_model::stock_lab::TransactionRecord> mapper(db_client);
+    auto mapper = make_mapper<drogon_model::stock_lab::TransactionRecord>();
     mapper.deleteBy(
         drogon::orm::Criteria(
             drogon_model::stock_lab::TransactionRecord::Cols::_symbol,

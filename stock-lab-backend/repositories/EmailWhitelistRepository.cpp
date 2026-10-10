@@ -8,12 +8,9 @@
 
 #include "EmailWhitelist.h"
 
-void repository::EmailWhitelistRepository::exists_by_email(const std::string &email, ExistsCallback on_success, std::function<void(const drogon::orm::DrogonDbException &)> on_error) const
+void repository::EmailWhitelistRepository::exists_by_email(const std::string &email, ExistsCallback on_success, std::function<void(const drogon::orm::DrogonDbException &)> on_error)
 {
-    auto db_client = drogon::app().getDbClient();
-
-    drogon::orm::Mapper<drogon_model::stock_lab::EmailWhitelist> mapper(db_client);
-
+    auto mapper = make_mapper<drogon_model::stock_lab::EmailWhitelist>();
     mapper.findBy(
         drogon::orm::Criteria(
             drogon_model::stock_lab::EmailWhitelist::Cols::_email,
@@ -21,7 +18,7 @@ void repository::EmailWhitelistRepository::exists_by_email(const std::string &em
             email
         ),
         [on_success = std::move(on_success)](
-            std::vector<drogon_model::stock_lab::EmailWhitelist> rows) mutable
+            const std::vector<drogon_model::stock_lab::EmailWhitelist>& rows) mutable
         {
             on_success(!rows.empty());
         },
