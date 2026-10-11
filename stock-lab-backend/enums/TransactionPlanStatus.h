@@ -18,7 +18,7 @@ namespace enums
         DISABLED
     };
 
-    inline constexpr std::optional<TransactionPlanStatus> parse(const std::string& name)
+    inline std::optional<TransactionPlanStatus> parse(const std::string& name)
     {
         if (name == "ENABLED")
         {

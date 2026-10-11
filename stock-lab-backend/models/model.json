@@ -14,5 +14,5 @@
     //user: User name
     "user": "root",
     //password or passwd: Password
-    "password": "zy?2526818"
+    "password": "${DATASOURCE_PASSWORD}"
 }

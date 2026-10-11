@@ -18,7 +18,7 @@ namespace dto
             Json::Value root;
             const auto result_code_info = dto::result_code_info(dto::ResultCode::OK);
             root["code"] = result_code_info.code_;
-            root["msg"] = result_code_info.msg_;
+            root["msg"] = std::string(result_code_info.msg_);
             root["data"] = data;
 
             auto resp = drogon::HttpResponse::newHttpJsonResponse(root);
@@ -37,14 +37,14 @@ namespace dto
         {
             Json::Value root;
             root["code"] = result_code_info.code_;
-            root["msg"] = result_code_info.msg_;
+            root["msg"] = std::string(result_code_info.msg_);
 
             auto resp = drogon::HttpResponse::newHttpJsonResponse(root);
             resp->setStatusCode(drogon::k200OK);
             return resp;
         }
 
-        static drogon::HttpResponsePtr fail(int code, std::string& msg, drogon::HttpStatusCode http_status_code)
+        static drogon::HttpResponsePtr fail(int code, const std::string& msg, drogon::HttpStatusCode http_status_code)
         {
             Json::Value root;
             root["code"] = code;

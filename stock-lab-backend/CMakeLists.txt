@@ -64,6 +64,8 @@ add_executable(${PROJECT_NAME} main.cc
         repositories/BaseRepository.h
         utils/CronUtil.h
         utils/CronUtil.cpp
+        utils/ConfigLoader.h
+        utils/ConfigLoader.cpp
         services/SchedulerService.cpp
         services/SchedulerService.h
         services/TransactionRecordService.cpp

@@ -139,6 +139,11 @@ CMakeUserPresets.json
 # CMake
 cmake-build-*/
 
+# Local environment
+.env
+.env.*
+!.env.example
+
 # Mongo Explorer plugin
 .idea/**/mongoSettings.xml
 

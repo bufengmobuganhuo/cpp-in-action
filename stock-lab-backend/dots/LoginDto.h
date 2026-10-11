@@ -2,6 +2,7 @@
 // Created by yuzhang on 2026/10/5.
 //
 #pragma once
+#include <optional>
 #include <regex>
 #include <string>
 #include <drogon/HttpRequest.h>

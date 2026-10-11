@@ -5,7 +5,9 @@
 #pragma once
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <iomanip>
+#include <optional>
 #include <sstream>
+#include <string>
 #include <boost/cstdint.hpp>
 #include <trantor/utils/Logger.h>
 

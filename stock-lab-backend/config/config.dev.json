@@ -1,0 +1,16 @@
+{
+  "db_clients": [
+    {
+      "name": "default",
+      "rdbms": "mysql",
+      "host": "${DB_HOST:127.0.0.1}",
+      "port": 3306,
+      "dbname": "${DB_NAME:stock_lab}",
+      "user": "${DB_USERNAME:root}",
+      "passwd": "${DB_PASSWORD}",
+      "is_fast": false,
+      "number_of_connections": 3,
+      "timeout": -1.0
+    }
+  ]
+}

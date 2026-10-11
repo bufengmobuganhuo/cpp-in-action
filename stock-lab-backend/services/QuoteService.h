@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include <optional>
 #include <string>
 
 #include "dots/Quote.h"
@@ -23,4 +24,3 @@ namespace service
         static std::optional<dto::Quote> do_query_latest_quote(const std::string& symbol);
     };
 }
-

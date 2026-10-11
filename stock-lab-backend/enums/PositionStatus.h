@@ -19,7 +19,7 @@ namespace enums
         LIQUIDATED
     };
 
-    inline constexpr std::string name(PositionSnapshotStatus status)
+    inline std::string name(PositionSnapshotStatus status)
     {
         switch (status)
         {

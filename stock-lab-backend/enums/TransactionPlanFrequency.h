@@ -15,7 +15,7 @@ namespace enums
         MONTHLY
     };
 
-    inline constexpr std::optional<TransactionPlanFrequency> parse_frequency(const std::string& name)
+    inline std::optional<TransactionPlanFrequency> parse_frequency(const std::string& name)
     {
         if (name == "DAILY")
         {

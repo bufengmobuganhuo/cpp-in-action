@@ -1,13 +1,12 @@
 #include <drogon/drogon.h>
 
 #include "services/SchedulerService.h"
+#include "utils/ConfigLoader.h"
 
 int main() {
     //Set HTTP listener address and port
     drogon::app().addListener("0.0.0.0", 8088);
-    //Load config file
-    drogon::app().loadConfigFile("../config.json");
-    //drogon::app().loadConfigFile("../config.yaml");
+    util::ConfigLoader::load();
     //Handle browser CORS preflight requests before Drogon checks route methods.
     drogon::app().registerPreRoutingAdvice([](const drogon::HttpRequestPtr& req,
                                               drogon::AdviceCallback&& callback,
