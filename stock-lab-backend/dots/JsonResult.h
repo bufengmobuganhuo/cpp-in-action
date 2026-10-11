@@ -30,6 +30,12 @@ namespace dto
         {
             Json::Value root;
             const auto result_code_info = dto::result_code_info(result_code);
+            return fail(result_code_info);
+        }
+
+        static drogon::HttpResponsePtr fail(ResultCodeInfo result_code_info)
+        {
+            Json::Value root;
             root["code"] = result_code_info.code_;
             root["msg"] = result_code_info.msg_;
 

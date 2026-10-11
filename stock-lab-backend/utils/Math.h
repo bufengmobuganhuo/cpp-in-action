@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <sstream>
 #include <boost/cstdint.hpp>
+#include <trantor/utils/Logger.h>
 
 namespace util
 {
@@ -19,4 +20,39 @@ namespace util
         return oss.str();
     }
 
+    static std::optional<int> parse_int(const std::string& value)
+    {
+        if (value.empty())
+        {
+            return std::nullopt;
+        }
+
+        try
+        {
+            return std::stoi(value);
+        }
+        catch (...)
+        {
+            LOG_ERROR << "failed to parse_int64, value=" << value;
+            return std::nullopt;
+        }
+    }
+
+    static std::optional<int64_t> parse_int64(const std::string& value)
+    {
+        if (value.empty())
+        {
+            return std::nullopt;
+        }
+
+        try
+        {
+            return std::stoll(value);
+        }
+        catch (...)
+        {
+            LOG_ERROR << "failed to parse_int64, value=" << value;
+            return std::nullopt;
+        }
+    }
 }

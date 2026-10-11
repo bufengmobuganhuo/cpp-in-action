@@ -15,18 +15,16 @@ namespace util
     class Snowflake
     {
     public:
-        Snowflake(int64_t worker_id, int64_t datacenter_id)
-            : worker_id_(worker_id), datacenter_id_(datacenter_id)
+        static Snowflake& instance()
         {
-            if (worker_id < 0 || worker_id > k_max_worker_id)
-            {
-                throw std::invalid_argument("worker_id out of range");
-            }
-            if (datacenter_id < 0 || datacenter_id > k_max_datacenter_id)
-            {
-                throw std::invalid_argument("datacenter_id out of range");
-            }
+            static Snowflake snowflake(1, 1);
+            return snowflake;
         }
+
+        Snowflake(const Snowflake&) = delete;
+        Snowflake& operator=(const Snowflake&) = delete;
+        Snowflake(Snowflake&&) = delete;
+        Snowflake& operator=(Snowflake&&) = delete;
 
         int64_t next_id()
         {
@@ -60,6 +58,19 @@ namespace util
         }
 
     private:
+        Snowflake(int64_t worker_id, int64_t datacenter_id)
+            : worker_id_(worker_id), datacenter_id_(datacenter_id)
+        {
+            if (worker_id < 0 || worker_id > k_max_worker_id)
+            {
+                throw std::invalid_argument("worker_id out of range");
+            }
+            if (datacenter_id < 0 || datacenter_id > k_max_datacenter_id)
+            {
+                throw std::invalid_argument("datacenter_id out of range");
+            }
+        }
+
         static constexpr int64_t k_epoch = 1288834974657LL;
         static constexpr int64_t k_worker_id_bits = 5;
         static constexpr int64_t k_datacenter_id_bits = 5;

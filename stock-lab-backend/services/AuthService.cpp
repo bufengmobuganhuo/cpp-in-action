@@ -10,6 +10,7 @@
 #include "dots/JsonResult.h"
 #include "dots/loginRespDto.h"
 #include "utils/JwtUtils.h"
+#include "utils/Snowflake.h"
 #include "utils/TtlCache.h"
 
 void service::AuthService::send_verify_code(const dto::LoginDto& login_dto, ResponseCallback callback)
@@ -118,13 +119,13 @@ int service::AuthService::generate_verify_code()
 
 int64_t service::AuthService::register_if_necessary(const std::string& email)
 {
-    std::optional<drogon_model::stock_lab::User> optional = user_repository_.selectByEmail(email);
+    std::optional<drogon_model::stock_lab::User> optional = user_repository_.select_by_email(email);
     if (optional.has_value())
     {
         return optional->getValueOfId();
     }
 
-    const int64_t user_id = snowflake_.next_id();
+    const int64_t user_id = util::Snowflake::instance().next_id();
     drogon_model::stock_lab::User user;
     user.setId(user_id);
     user.setEmail(email);

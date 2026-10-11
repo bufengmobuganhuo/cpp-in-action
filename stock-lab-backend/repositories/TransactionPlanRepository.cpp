@@ -57,8 +57,36 @@ void repository::TransactionPlanRepository::select_by_user_id(int64_t user_id,
           );
 }
 
+void repository::TransactionPlanRepository::select_by_plan_id(int64_t user_id, int64_t plan_id,
+    std::function<void(Plan)> on_success, std::function<void(const drogon::orm::DrogonDbException&)> on_error)
+{
+    drogon::orm::Mapper<Plan> mapper = make_mapper<Plan>();
+
+    mapper.findOne(
+        drogon::orm::Criteria(
+            Plan::Cols::_user_id,
+            drogon::orm::CompareOperator::EQ,
+            user_id
+        )
+        &&
+        drogon::orm::Criteria(
+            Plan::Cols::_id,
+            drogon::orm::CompareOperator::EQ,
+            plan_id
+        ),
+        [on_success = std::move(on_success)](Plan plan)
+        {
+            on_success(plan);
+        },
+        [on_error = std::move(on_error)](const drogon::orm::DrogonDbException& e)
+        {
+            on_error(e);
+        }
+    );
+}
+
 void repository::TransactionPlanRepository::select_all(
-    const std::vector<std::string>& statuses,
+    const std::vector<std::string_view>& statuses,
     std::function<void(std::vector<Plan>)> on_success,
     std::function<void(const drogon::orm::DrogonDbException&)> on_error)
 {

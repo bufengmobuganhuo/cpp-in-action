@@ -10,12 +10,12 @@ namespace service
 {
     struct TransactionPlanReminderEmail
     {
-        std::string symbol;
-        std::string amount;
-        std::string frequency_desc;
-        std::string total_invest_times;
-        std::string total_invest_amount;
-        std::optional<std::string> target_total_value;
+        std::string symbol_;
+        std::string amount_;
+        std::string frequency_desc_;
+        std::string total_invest_times_;
+        std::string total_invest_amount_;
+        std::optional<std::string> target_total_value_;
     };
 
     class MailService

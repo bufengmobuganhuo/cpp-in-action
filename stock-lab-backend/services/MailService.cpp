@@ -95,7 +95,7 @@ void service::MailService::send_transaction_plan_remind_email(
     Json::Value body;
     body["from"] = from;
     body["to"].append(email);
-    body["subject"] = "【" + app_name + "】定投提醒 - " + reminder.symbol;
+    body["subject"] = "【" + app_name + "】定投提醒 - " + reminder.symbol_;
 
     const std::string html = build_transaction_remind_html(reminder);
     if (html.empty())
@@ -116,7 +116,7 @@ void service::MailService::send_transaction_plan_remind_email(
 
     client->sendRequest(
         req,
-        [callback = std::move(callback), email, plan_symbol = reminder.symbol](
+        [callback = std::move(callback), email, plan_symbol = reminder.symbol_](
             drogon::ReqResult result,
             const drogon::HttpResponsePtr &resp
         ) mutable
@@ -191,15 +191,15 @@ std::string service::MailService::build_transaction_remind_html(const Transactio
         return {};
     }
 
-    replace_all(html, "{{symbol}}", escape_html(email.symbol));
-    replace_all(html, "{{amount}}", escape_html(email.amount));
-    replace_all(html, "{{frequencyDesc}}", escape_html(email.frequency_desc));
-    replace_all(html, "{{totalInvestTimes}}", escape_html(email.total_invest_times));
-    replace_all(html, "{{totalInvestAmount}}", escape_html(email.total_invest_amount));
+    replace_all(html, "{{symbol}}", escape_html(email.symbol_));
+    replace_all(html, "{{amount}}", escape_html(email.amount_));
+    replace_all(html, "{{frequencyDesc}}", escape_html(email.frequency_desc_));
+    replace_all(html, "{{totalInvestTimes}}", escape_html(email.total_invest_times_));
+    replace_all(html, "{{totalInvestAmount}}", escape_html(email.total_invest_amount_));
     replace_all(
         html,
         "{{targetTotalValue}}",
-        email.target_total_value.has_value() ? "$" + escape_html(email.target_total_value.value()) : "未设置"
+        email.target_total_value_.has_value() ? "$" + escape_html(email.target_total_value_.value()) : "未设置"
     );
     replace_all(html, "{{appName}}", escape_html(get_app_name()));
     replace_all(html, "{{year}}", current_year());

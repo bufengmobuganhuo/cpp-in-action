@@ -25,8 +25,14 @@ namespace repository
             std::function<void(std::vector<Plan>, size_t)> on_success,
             std::function<void(const drogon::orm::DrogonDbException&)> on_error
         );
+        static void select_by_plan_id(
+            int64_t user_id,
+            int64_t plan_id,
+            std::function<void(Plan)> on_success,
+            std::function<void(const drogon::orm::DrogonDbException&)> on_error
+        );
         static void select_all(
-            const std::vector<std::string>& statuses,
+            const std::vector<std::string_view>& statuses,
             std::function<void(std::vector<Plan>)> on_success,
             std::function<void(const drogon::orm::DrogonDbException&)> on_error
         );

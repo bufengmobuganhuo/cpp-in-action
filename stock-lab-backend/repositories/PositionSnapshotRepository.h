@@ -10,7 +10,7 @@
 #include "BaseRepository.h"
 #include "ModelAliases.h"
 
-namespace respository
+namespace repository
 {
     class PositionSnapshotRepository : public BaseRepository
     {

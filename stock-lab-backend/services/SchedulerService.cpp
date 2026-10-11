@@ -4,6 +4,8 @@
 
 #include "SchedulerService.h"
 
+#include <random>
+
 #include "enums/TransactionPlanStatus.h"
 #include "utils/CronUtil.h"
 
@@ -32,11 +34,11 @@ void service::SchedulerService::scan()
                 }
             }
         },
-        [](const drogon::orm::DrogonDbException &e)
+        [](const drogon::orm::DrogonDbException& e)
         {
             LOG_ERROR << "failed to scan plan, e=" << e.base().what();
         }
-        );
+    );
 }
 
 void service::SchedulerService::execute_plan(const drogon_model::stock_lab::TransactionPlan& plan)
@@ -46,10 +48,49 @@ void service::SchedulerService::execute_plan(const drogon_model::stock_lab::Tran
         LOG_WARN << "transaction plan is not enabled, plan_id=" << plan.getValueOfId();
         return;
     }
-    else if (plan.getValueOfStartDate() > trantor::Date::now())
+    if (plan.getValueOfStartDate() > trantor::Date::now())
     {
         LOG_WARN << "transaction plan is not started, plan_id=" << plan.getValueOfId();
         return;
     }
-
+    auto plan_ptr = std::make_shared<drogon_model::stock_lab::TransactionPlan>(plan);
+    user_repository_.select_by_id(
+        plan.getValueOfUserId(),
+        [this, plan_ptr](drogon_model::stock_lab::User user)
+        {
+            transaction_record_service_.get_invest_statistics(
+                (*plan_ptr).getValueOfId(),
+                (*plan_ptr).getValueOfUserId(),
+                [this, plan_ptr, user = std::move(user)](vo::TransactionStatisticsVo vo)
+                {
+                    TransactionPlanReminderEmail email;
+                    email.symbol_ = (*plan_ptr).getValueOfSymbol();
+                    email.amount_ = (*plan_ptr).getValueOfAmount();
+                    email.frequency_desc_ = (*plan_ptr).getValueOfFrequencyDesc();
+                    email.total_invest_times_ = vo.total_invest_times_;
+                    email.total_invest_amount_ = vo.total_invest_amount_;
+                    email.target_total_value_ = vo.next_target_value_;
+                    mail_service_.send_transaction_plan_remind_email(
+                        user.getValueOfEmail(),
+                        email,
+                        [plan_ptr, this](bool success)
+                        {
+                            if (!success)
+                            {
+                                LOG_ERROR << "fail to send_transaction_plan_remind_email, plan_id=" << (*plan_ptr).getValueOfId();
+                            }
+                            else
+                            {
+                                informed_cache_.put((*plan_ptr).getValueOfId(), *plan_ptr);
+                            }
+                        }
+                    );
+                }
+            );
+        },
+        [plan_ptr](const drogon::orm::DrogonDbException& e)
+        {
+            LOG_ERROR << "failed to select user, user_id=" << (*plan_ptr).getValueOfUserId() << "e=" << e.base().what();
+        }
+    );
 }

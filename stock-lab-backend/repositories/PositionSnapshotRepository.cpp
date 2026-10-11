@@ -10,7 +10,7 @@
 
 #include "dots/LoginDto.h"
 
-void respository::PositionSnapshotRepository::select_by_user_id(int64_t user_id,
+void repository::PositionSnapshotRepository::select_by_user_id(int64_t user_id,
                                                                 const std::string& position_snapshot_status,
                                                                 std::function<void(
                                                                     std::vector<
@@ -42,7 +42,7 @@ void respository::PositionSnapshotRepository::select_by_user_id(int64_t user_id,
     );
 }
 
-void respository::PositionSnapshotRepository::delete_by_symbol(const std::string& symbol, int64_t user_id,
+void repository::PositionSnapshotRepository::delete_by_symbol(const std::string& symbol, int64_t user_id,
                                                                std::function<void()> on_success,
                                                                std::function<void(const drogon::orm::DrogonDbException &)> on_error)
 {

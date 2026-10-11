@@ -9,7 +9,6 @@
 #include "repositories/EmailWhitelistRepository.h"
 #include "repositories/UserRepository.h"
 #include "utils/JwtUtils.h"
-#include "utils/Snowflake.h"
 #include "utils/TtlCache.h"
 
 namespace service
@@ -21,7 +20,6 @@ namespace service
         repository::EmailWhitelistRepository email_whitelist_repository_;
         repository::UserRepository user_repository_;
         service::MailService mail_service_;
-        util::Snowflake snowflake_{1, 1};
         util::JwtUtil jwt_util_;
         int generate_verify_code();
         int64_t register_if_necessary(const std::string& email);

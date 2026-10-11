@@ -11,7 +11,6 @@
 #include "dots/TransactionPlanDto.h"
 #include "enums/TransactionPlanStatus.h"
 #include "repositories/TransactionPlanRepository.h"
-#include "utils/Snowflake.h"
 
 namespace service
 {
@@ -43,6 +42,5 @@ namespace service
                                      std::function<void(InvestFrequency)> on_success,
                                      std::function<void(drogon::HttpResponsePtr)> on_error);
         ContractService contract_service_;
-        util::Snowflake snowflake_{1, 1};
     };
 }

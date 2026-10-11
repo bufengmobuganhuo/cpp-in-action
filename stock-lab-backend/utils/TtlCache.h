@@ -21,7 +21,7 @@ namespace util
         std::unordered_map<Key, Entry> data_;
         std::chrono::seconds cleanup_interval_;
         std::thread cleanup_thread_;
-        bool stopped_;
+        bool stopped_ = false;
         std::condition_variable cv_;
 
         bool is_expired(const Entry &entry)
@@ -63,7 +63,7 @@ namespace util
             }
         }
     public:
-        explicit TtlCache(std::chrono::seconds cleanup_interval = std::chrono::seconds(60)) : cleanup_interval_(cleanup_interval), cleanup_thread_([this]{cleanup_loop();}){}
+        explicit TtlCache(std::chrono::seconds cleanup_interval = std::chrono::seconds(60)) : cleanup_interval_(cleanup_interval), cleanup_thread_([this]{cleanup_loop();}), stopped_(false){}
 
         ~TtlCache()
         {

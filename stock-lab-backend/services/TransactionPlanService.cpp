@@ -16,6 +16,7 @@
 #include "enums/TransactionPlanStatus.h"
 #include "repositories/TransactionRecordRepository.h"
 #include "utils/CronUtil.h"
+#include "utils/Snowflake.h"
 #include "vo/TransactionPlanVo.h"
 
 namespace
@@ -178,7 +179,7 @@ namespace
 
         plan.setRemindTime(transaction_plan_dto.remind_time_);
         plan.setCron(invest_frequency.cron_);
-        plan.setStatus(enums::name(transaction_plan_dto.enabled_ ? enums::ENABLED : enums::DISABLED));
+        plan.setStatus(std::string(enums::name(transaction_plan_dto.enabled_ ? enums::ENABLED : enums::DISABLED)));
 
         const auto now = trantor::Date::now();
         plan.setCreatedAt(now);
@@ -210,7 +211,7 @@ void service::TransactionPlanService::add_transaction_plan(const dto::Transactio
                                         drogon_model::stock_lab::TransactionPlan plan;
                                         try
                                         {
-                                            const int64_t id = snowflake_.next_id();
+                                            const int64_t id = util::Snowflake::instance().next_id();
                                             std::optional<drogon_model::stock_lab::TransactionPlan> optional_plan =
                                                 build_transaction_plan(transaction_plan_dto, id, user_id,
                                                                        invest_frequency);
@@ -295,7 +296,7 @@ void service::TransactionPlanService::update_transaction_plan_status(uint64_t id
     repository::TransactionPlanRepository::update_transaction_plan_status(
         id,
         user_id,
-        enums::name(status),
+        std::string(enums::name(status)),
         [callback_ptr]()
         {
             (*callback_ptr)(dto::JsonResult::ok());

@@ -49,6 +49,7 @@ add_executable(${PROJECT_NAME} main.cc
         vo/PositionSnapshotDetailVo.h
         vo/TransactionPlanVo.h
         utils/Math.h
+        utils/TimeUtil.h
         services/QuoteService.cpp
         services/QuoteService.h
         dots/Quote.h
@@ -66,10 +67,11 @@ add_executable(${PROJECT_NAME} main.cc
         services/SchedulerService.h
         services/TransactionRecordService.cpp
         services/TransactionRecordService.h
-        dots/TransactionStatisticsVo.h
+        vo/TransactionStatisticsVo.h
         controllers/BaseCtrl.cpp
         controllers/BaseCtrl.h
         enums/TransactionPlanFrequency.h
+        vo/TransactionRecordVo.h
 )
 
 # ##############################################################################
