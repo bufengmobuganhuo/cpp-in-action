@@ -30,7 +30,7 @@
       "verify_code_template": "../templates/email/code.html"
     },
     "resend": {
-      "api_key": "re_VWCu1XGu_6zM4b5oPp7cJTqkUUiepvGnv"
+      "api_key": "re_9VD3VWzY_Dk7wMj2wVr6wMz7mLMKcFxon"
     },
     "finnhub": {
       "url": "https://finnhub.io",

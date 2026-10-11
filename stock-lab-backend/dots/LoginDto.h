@@ -11,7 +11,7 @@ namespace dto
     struct LoginDto
     {
         std::string email_;
-        int verify_code_{0};
+        std::string verify_code_;
 
         std::optional<std::string> validate() const
         {
@@ -41,7 +41,7 @@ namespace drogon
         if (json)
         {
             login_dto.email_ = (*json)["email"].asString();
-            login_dto.verify_code_ = (*json)["verifyCode"].asInt();
+            login_dto.verify_code_ = (*json)["verifyCode"].asString();
         }
         return login_dto;
     }

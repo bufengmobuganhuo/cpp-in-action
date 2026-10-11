@@ -18,6 +18,7 @@ class TransactionRecordCtrl : public drogon::HttpController<TransactionRecordCtr
     // METHOD_ADD(TransactionRecordCtrl::your_method_name, "/{1}/{2}/list", Get); // path is /controller/TransactionRecordCtrl/{arg1}/{arg2}/list
     // ADD_METHOD_TO(TransactionRecordCtrl::your_method_name, "/absolute/path/{1}/{2}/list", Get); // path is /absolute/path/{arg1}/{arg2}/list
     ADD_METHOD_TO(TransactionRecordCtrl::add_transaction_record, "/api/transaction/record", Post, "filter::AuthFilter");
+    ADD_METHOD_TO(TransactionRecordCtrl::get_invest_statistics, "/api/transaction/record/statistic?planId={1}", Get, "filter::AuthFilter");
     ADD_METHOD_TO(TransactionRecordCtrl::get_latest_transaction_records, "/api/transaction/record/list", Get, "filter::AuthFilter");
     ADD_METHOD_TO(TransactionRecordCtrl::get_transaction_records_by_plan_id, "/api/transaction/record/list-by-plan", Get, "filter::AuthFilter");
 
@@ -27,6 +28,8 @@ class TransactionRecordCtrl : public drogon::HttpController<TransactionRecordCtr
     // void your_method_name(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback, double p1, int p2) const;
     void add_transaction_record(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback,
                                 const dto::TransactionRecordDto& dto);
+    void get_invest_statistics(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback,
+                               int64_t plan_id);
     void get_latest_transaction_records(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback);
     void get_transaction_records_by_plan_id(const HttpRequestPtr& req, std::function<void (const HttpResponsePtr &)> &&callback);
 private:

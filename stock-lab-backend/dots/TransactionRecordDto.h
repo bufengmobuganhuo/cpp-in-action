@@ -12,12 +12,13 @@
 
 #include "ModelAliases.h"
 #include "enums/OrderAction.h"
+#include "utils/StringUtil.h"
 
 namespace dto
 {
     struct TransactionRecordDto
     {
-        int64_t plan_id_;
+        std::optional<int64_t> plan_id_;
         std::string symbol_;
         std::string action_;
         std::string filled_price_;
@@ -52,9 +53,9 @@ namespace dto
             {
                 return "成交时间不合法";
             }
-            if (remark_.size() > 10)
+            if (util::utf8_length(remark_) > 300)
             {
-                return "备注长度不能超过10个字符";
+                return "备注长度不能超过300个字符";
             }
             return std::nullopt;
         }
@@ -68,7 +69,10 @@ namespace dto
             drogon_model::stock_lab::TransactionRecord record;
             record.setId(id);
             record.setUserId(user_id);
-            record.setPlanId(plan_id_);
+            if (plan_id_.has_value())
+            {
+                record.setPlanId(plan_id_.value());
+            }
             record.setSymbol(symbol_);
             record.setAction(action_);
             record.setFilledPrice(filled_price_);
@@ -114,9 +118,9 @@ namespace drogon
         dto::TransactionRecordDto transaction_record_dto;
         if (json)
         {
-            if (json->isMember("planId") && (*json)["planId"].isInt64())
+            if (json->isMember("planId") && !(*json)["planId"].isNull())
             {
-                transaction_record_dto.plan_id_ = (*json)["planId"].asInt64();
+                transaction_record_dto.plan_id_ = std::stoll((*json)["planId"].asString());
             }
             if (json->isMember("symbol") && !(*json)["symbol"].isNull())
             {

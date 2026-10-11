@@ -21,6 +21,19 @@ void TransactionRecordCtrl::add_transaction_record(const HttpRequestPtr& req,
     transaction_record_service_.add_transaction_record(dto, user_id.value(), std::move(callback));
 }
 
+void TransactionRecordCtrl::get_invest_statistics(const HttpRequestPtr& req,
+                                                  std::function<void(const HttpResponsePtr&)>&& callback,
+                                                  int64_t plan_id)
+{
+    std::optional<int64_t> user_id = get_user_id(req);
+    if (!user_id.has_value())
+    {
+        callback(dto::JsonResult::fail(dto::ResultCode::AuthError));
+        return;
+    }
+    transaction_record_service_.get_invest_statistics(plan_id, user_id.value(), std::move(callback));
+}
+
 void TransactionRecordCtrl::get_latest_transaction_records(const HttpRequestPtr& req,
                                                            std::function<void(const HttpResponsePtr&)>&& callback)
 {

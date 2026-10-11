@@ -30,8 +30,12 @@ namespace service
             int64_t last_id,
             int page_size,
             ResponseCallback callback);
-        void get_invest_statistics(int64_t plan_id, int64_t user_id,
-                                   std::function<void(vo::TransactionStatisticsVo)> callback);
+        void get_invest_statistics(int64_t plan_id, int64_t user_id, ResponseCallback callback);
+        void get_invest_statistics_vo(
+            int64_t plan_id,
+            int64_t user_id,
+            std::function<void(vo::TransactionStatisticsVo)> on_success,
+            std::function<void(const drogon::orm::DrogonDbException&)> on_error);
 
     private:
         void check(int64_t user_id, const dto::TransactionRecordDto& record_dto,

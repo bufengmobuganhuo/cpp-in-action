@@ -49,6 +49,7 @@ add_executable(${PROJECT_NAME} main.cc
         vo/PositionSnapshotDetailVo.h
         vo/TransactionPlanVo.h
         utils/Math.h
+        utils/StringUtil.h
         utils/TimeUtil.h
         services/QuoteService.cpp
         services/QuoteService.h

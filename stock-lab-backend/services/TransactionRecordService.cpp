@@ -269,18 +269,40 @@ void service::TransactionRecordService::get_transaction_records(const std::strin
     );
 }
 
-void service::TransactionRecordService::get_invest_statistics(int64_t plan_id, int64_t user_id,
-                                                              std::function<void(vo::TransactionStatisticsVo)> callback)
+void service::TransactionRecordService::get_invest_statistics(int64_t plan_id, int64_t user_id, ResponseCallback callback)
 {
-    auto callback_ptr = std::make_shared<std::function<void(vo::TransactionStatisticsVo)>>(callback);
+    auto callback_ptr = std::make_shared<ResponseCallback>(std::move(callback));
+    get_invest_statistics_vo(
+        plan_id,
+        user_id,
+        [callback_ptr](vo::TransactionStatisticsVo statistics)
+        {
+            (*callback_ptr)(dto::JsonResult::ok(statistics.to_json()));
+        },
+        [callback_ptr, plan_id, user_id](const drogon::orm::DrogonDbException& e)
+        {
+            LOG_ERROR << "failed to get_invest_statistics, plan_id=" << plan_id
+                << ", user_id=" << user_id << ", e=" << e.base().what();
+            (*callback_ptr)(dto::JsonResult::fail(dto::ResultCode::InternalError));
+        });
+}
+
+void service::TransactionRecordService::get_invest_statistics_vo(
+    int64_t plan_id,
+    int64_t user_id,
+    std::function<void(vo::TransactionStatisticsVo)> on_success,
+    std::function<void(const drogon::orm::DrogonDbException&)> on_error)
+{
+    auto on_success_ptr = std::make_shared<std::function<void(vo::TransactionStatisticsVo)>>(std::move(on_success));
+    auto on_error_ptr = std::make_shared<std::function<void(const drogon::orm::DrogonDbException&)>>(std::move(on_error));
     repository::TransactionRecordRepository::statistics_by_plan_id(
         user_id, plan_id,
-        [callback_ptr, user_id, plan_id](size_t total_invest_times, std::string total_invest_amount,
+        [on_success_ptr, on_error_ptr, user_id, plan_id](size_t total_invest_times, std::string total_invest_amount,
                                          std::string total_invest_qty, std::string total_invest_commission)
         {
             repository::TransactionPlanRepository::select_by_plan_id(
                 user_id, plan_id,
-                [total_invest_times, total_invest_amount, total_invest_qty, total_invest_commission, callback_ptr](
+                [total_invest_times, total_invest_amount, total_invest_qty, total_invest_commission, on_success_ptr](
                 drogon_model::stock_lab::TransactionPlan plan)
                 {
                     util::Decimal plan_amount(plan.getValueOfAmount());
@@ -293,18 +315,20 @@ void service::TransactionRecordService::get_invest_statistics(int64_t plan_id, i
                     transaction_statistics_vo.total_invest_commission_ = util::format_decimal(
                         util::Decimal(total_invest_commission));
                     transaction_statistics_vo.next_target_value_ = util::format_decimal(next_target_value);
-                    (*callback_ptr)(transaction_statistics_vo);
+                    (*on_success_ptr)(transaction_statistics_vo);
                 },
-                [callback_ptr, plan_id, user_id](const drogon::orm::DrogonDbException& e)
+                [on_error_ptr, plan_id, user_id](const drogon::orm::DrogonDbException& e)
                 {
                     LOG_ERROR << "failed to select_by_plan_id, plan_id=" << plan_id << ", user_id=" << user_id << ", e="
                         << e.base().what();
+                    (*on_error_ptr)(e);
                 }
             );
         },
-        [plan_id, user_id](const drogon::orm::DrogonDbException& e)
+        [on_error_ptr, plan_id, user_id](const drogon::orm::DrogonDbException& e)
         {
             LOG_ERROR << "failed to statistics_by_plan_id, plan_id=" << plan_id << ", user_id=" << user_id;
+            (*on_error_ptr)(e);
         }
     );
 }
@@ -318,16 +342,26 @@ void service::TransactionRecordService::check(int64_t user_id, const dto::Transa
         check_result(false, msg);
         return;
     }
+    if (!record_dto.plan_id_.has_value())
+    {
+        check_result(true, std::nullopt);
+        return;
+    }
+    auto check_result_ptr =
+        std::make_shared<std::function<void(bool, std::optional<std::string>)>>(std::move(check_result));
     repository::TransactionPlanRepository::select_by_plan_id(
         user_id,
-        record_dto.plan_id_,
-        [check_result = std::move(check_result)](drogon_model::stock_lab::TransactionPlan plan)
+        record_dto.plan_id_.value(),
+        [check_result_ptr](drogon_model::stock_lab::TransactionPlan plan)
         {
-            check_result(true, std::nullopt);
+            (*check_result_ptr)(true, std::nullopt);
         },
-        [check_result = std::move(check_result)](const drogon::orm::DrogonDbException& e)
+        [check_result_ptr, user_id, record_dto](const drogon::orm::DrogonDbException& e)
         {
-            check_result(false, "执行计划不存在");
+            LOG_ERROR << "check failed, user_id=" << user_id
+                << ", plan_id=" << record_dto.plan_id_.value()
+                << ", e=" << e.base().what();
+            (*check_result_ptr)(false, "执行计划不存在");
         }
     );
 }

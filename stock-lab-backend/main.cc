@@ -1,8 +1,5 @@
 #include <drogon/drogon.h>
 
-#include <set>
-#include <string_view>
-
 #include "services/SchedulerService.h"
 
 int main() {
@@ -22,25 +19,17 @@ int main() {
             return;
         }
 
-        static const std::set<std::string_view> allowed_headers{
-            "authorization",
-            "content-type",
-            "accept",
-            "origin",
-            "x-requested-with"
-        };
-        auto allow_all_origins = [](std::string_view)
-        {
-            return true;
-        };
-        callback(drogon::HttpResponse::newOptionsResponse(
-            req,
-            allow_all_origins,
-            true,
-            true,
-            true,
-            86400,
-            allowed_headers));
+        auto resp = drogon::HttpResponse::newHttpResponse();
+        resp->setStatusCode(drogon::k204NoContent);
+
+        const auto origin = req->getHeader("Origin");
+        resp->addHeader("Access-Control-Allow-Origin", origin.empty() ? "*" : origin);
+        resp->addHeader("Access-Control-Allow-Credentials", "true");
+        resp->addHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        resp->addHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, Origin, X-Requested-With");
+        resp->addHeader("Access-Control-Max-Age", "86400");
+        resp->addHeader("Vary", "Origin");
+        callback(resp);
     });
     drogon::app().registerPreSendingAdvice([](const drogon::HttpRequestPtr& req,
                                               const drogon::HttpResponsePtr& resp)

@@ -66,7 +66,7 @@ void service::AuthService::send_verify_code(const dto::LoginDto& login_dto, Resp
 void service::AuthService::verify_code(const dto::LoginDto& login_dto, ResponseCallback callback)
 {
     const std::string email = login_dto.email_;
-    const int verify_code = login_dto.verify_code_;
+    const std::string verify_code = login_dto.verify_code_;
     const auto callback_ptr = std::make_shared<ResponseCallback>(callback);
     email_whitelist_repository_.exists_by_email(
         email,
@@ -83,7 +83,7 @@ void service::AuthService::verify_code(const dto::LoginDto& login_dto, ResponseC
                 (*callback_ptr)(dto::JsonResult::fail(dto::ResultCode::VerifyCodeExpired));
                 return;
             }
-            if (cached_verify_code.value() != verify_code)
+            if (cached_verify_code.value() != std::stoi(verify_code))
             {
                 (*callback_ptr)(dto::JsonResult::fail(dto::ResultCode::VerifyCodeMismatch));
                 return;

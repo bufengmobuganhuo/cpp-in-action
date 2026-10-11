@@ -58,7 +58,7 @@ void service::SchedulerService::execute_plan(const drogon_model::stock_lab::Tran
         plan.getValueOfUserId(),
         [this, plan_ptr](drogon_model::stock_lab::User user)
         {
-            transaction_record_service_.get_invest_statistics(
+            transaction_record_service_.get_invest_statistics_vo(
                 (*plan_ptr).getValueOfId(),
                 (*plan_ptr).getValueOfUserId(),
                 [this, plan_ptr, user = std::move(user)](vo::TransactionStatisticsVo vo)
@@ -85,6 +85,11 @@ void service::SchedulerService::execute_plan(const drogon_model::stock_lab::Tran
                             }
                         }
                     );
+                },
+                [plan_ptr](const drogon::orm::DrogonDbException& e)
+                {
+                    LOG_ERROR << "failed to get invest statistics, plan_id="
+                        << (*plan_ptr).getValueOfId() << ", e=" << e.base().what();
                 }
             );
         },
