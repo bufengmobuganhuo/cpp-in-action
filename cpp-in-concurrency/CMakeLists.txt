@@ -8,7 +8,12 @@ add_executable(cpp_in_concurrency main.cpp
         chapter02/ThreadSafeStack.cpp
         chapter02/include/Wrapper.h
         chapter02/HierarchicalMutex.cpp
-        chapter02/include/HierarchicalMutex.h)
+        chapter02/include/HierarchicalMutex.h
+        chapter04/ConditionDemo.cpp
+        chapter04/ThreadSafeQueue.cpp
+        chapter04/include/ThreadSafeQueue.h
+        chapter05/SpinLockMutex.cpp
+)
 
 # 每章一个可执行文件：自动收集 ${name}/ 下的所有 .cpp 和 ${name}/include/ 下的 .h
 # 新章节只需创建目录并添加一行 add_chapter(chapterXX)
@@ -20,3 +25,5 @@ function(add_chapter name)
 endfunction()
 
 add_chapter(chapter02)
+add_chapter(chapter04)
+add_chapter(chapter05)
