@@ -14,6 +14,18 @@
 #include <fstream>
 #include <sstream>
 
+namespace
+{
+    drogon::HttpClientPtr resend_client()
+    {
+        static auto client = drogon::HttpClient::newHttpClient(
+            "https://api.resend.com",
+            drogon::app().getLoop()
+        );
+        return client;
+    }
+}
+
 void service::MailService::send_verify_code_email(const std::string& email, int verify_code, Callback callback) const
 {
     const std::string api_key = get_resend_api_key();
@@ -47,33 +59,35 @@ void service::MailService::send_verify_code_email(const std::string& email, int 
     req->addHeader("Authorization", "Bearer " + api_key);
     req->addHeader("Content-Type", "application/json");
 
-    auto client = drogon::HttpClient::newHttpClient("https://api.resend.com");
-
-    client->sendRequest(
-        req,
-        [callback = std::move(callback)](
-            drogon::ReqResult result,
-            const drogon::HttpResponsePtr &resp
-        ) mutable
+    drogon::app().getLoop()->queueInLoop(
+        [req, callback = std::move(callback)]() mutable
         {
-            if (result != drogon::ReqResult::Ok || resp == nullptr)
-            {
-                LOG_ERROR << "failed to call resend, result=" << static_cast<int>(result);
-                callback(false);
-                return;
-            }
-            const auto status = resp->getStatusCode();
-            if (status < drogon::k200OK || status >= drogon::k300MultipleChoices)
-            {
-                LOG_ERROR << "resend returned non-2xx, status=" << status << ", body=" << resp->getBody();
-                callback(false);
-                return;
-            }
+            auto client = resend_client();
+            client->sendRequest(
+                req,
+                [callback = std::move(callback)](
+                    drogon::ReqResult result,
+                    const drogon::HttpResponsePtr &resp
+                ) mutable
+                {
+                    if (result != drogon::ReqResult::Ok || resp == nullptr)
+                    {
+                        LOG_ERROR << "failed to call resend, result=" << static_cast<int>(result);
+                        callback(false);
+                        return;
+                    }
+                    const auto status = resp->getStatusCode();
+                    if (status < drogon::k200OK || status >= drogon::k300MultipleChoices)
+                    {
+                        LOG_ERROR << "resend returned non-2xx, status=" << status << ", body=" << resp->getBody();
+                        callback(false);
+                        return;
+                    }
 
-            LOG_INFO << "send verify code email by resend";
-            callback(true);
-        }
-    );
+                    LOG_INFO << "send verify code email by resend";
+                    callback(true);
+                });
+        });
 }
 
 void service::MailService::send_transaction_plan_remind_email(
@@ -112,33 +126,35 @@ void service::MailService::send_transaction_plan_remind_email(
     req->addHeader("Authorization", "Bearer " + api_key);
     req->addHeader("Content-Type", "application/json");
 
-    auto client = drogon::HttpClient::newHttpClient("https://api.resend.com");
-
-    client->sendRequest(
-        req,
-        [callback = std::move(callback), email, plan_symbol = reminder.symbol_](
-            drogon::ReqResult result,
-            const drogon::HttpResponsePtr &resp
-        ) mutable
+    drogon::app().getLoop()->queueInLoop(
+        [req, callback = std::move(callback), email, plan_symbol = reminder.symbol_]() mutable
         {
-            if (result != drogon::ReqResult::Ok || resp == nullptr)
-            {
-                LOG_ERROR << "failed to call resend, result=" << static_cast<int>(result);
-                callback(false);
-                return;
-            }
-            const auto status = resp->getStatusCode();
-            if (status < drogon::k200OK || status >= drogon::k300MultipleChoices)
-            {
-                LOG_ERROR << "resend returned non-2xx, status=" << status << ", body=" << resp->getBody();
-                callback(false);
-                return;
-            }
+            auto client = resend_client();
+            client->sendRequest(
+                req,
+                [callback = std::move(callback), email, plan_symbol](
+                    drogon::ReqResult result,
+                    const drogon::HttpResponsePtr &resp
+                ) mutable
+                {
+                    if (result != drogon::ReqResult::Ok || resp == nullptr)
+                    {
+                        LOG_ERROR << "failed to call resend, result=" << static_cast<int>(result);
+                        callback(false);
+                        return;
+                    }
+                    const auto status = resp->getStatusCode();
+                    if (status < drogon::k200OK || status >= drogon::k300MultipleChoices)
+                    {
+                        LOG_ERROR << "resend returned non-2xx, status=" << status << ", body=" << resp->getBody();
+                        callback(false);
+                        return;
+                    }
 
-            LOG_INFO << "sent transaction remind email, email=" << email << ", symbol=" << plan_symbol;
-            callback(true);
-        }
-    );
+                    LOG_INFO << "sent transaction remind email, email=" << email << ", symbol=" << plan_symbol;
+                    callback(true);
+                });
+        });
 }
 
 std::string service::MailService::get_resend_api_key() const

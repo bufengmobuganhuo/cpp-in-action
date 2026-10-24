@@ -425,7 +425,6 @@ service::TransactionRecordService::build_or_update_position_snapshot_for_buy(
         updated_snapshot.setTotalBuyAmount("0.00000");
         updated_snapshot.setTotalSellAmount("0.00000");
         updated_snapshot.setCommission("0.00000");
-        updated_snapshot.setDeleted("0");
         updated_snapshot.setCreatedAt(now);
         updated_snapshot.setUpdatedAt(now);
     }

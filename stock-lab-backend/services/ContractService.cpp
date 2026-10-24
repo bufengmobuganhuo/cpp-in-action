@@ -48,9 +48,8 @@ std::string service::ContractService::get_contract_search_token()
 
 std::optional<dto::ContractSearchResp> service::ContractService::do_search_contract_sync(const std::string& keyword)
 {
-    std::pair<drogon::HttpClientPtr, drogon::HttpRequestPtr> req_obj = build_request_obj(keyword);
-    drogon::HttpClientPtr client = req_obj.first;
-    drogon::HttpRequestPtr req = req_obj.second;
+    drogon::HttpClientPtr client = drogon::HttpClient::newHttpClient(get_contract_search_url());
+    drogon::HttpRequestPtr req = build_request(keyword);
     std::pair<drogon::ReqResult, drogon::HttpResponsePtr> resp_pair = client->sendRequest(req);
     drogon::ReqResult req_result = resp_pair.first;
     drogon::HttpResponsePtr resp = resp_pair.second;
@@ -64,40 +63,49 @@ std::optional<dto::ContractSearchResp> service::ContractService::do_search_contr
 
 void service::ContractService::do_search_contract_async(const std::string& keyword, ResponseCallback callback)
 {
-    std::pair<drogon::HttpClientPtr, drogon::HttpRequestPtr> req_obj = build_request_obj(keyword);
-    drogon::HttpClientPtr client = req_obj.first;
-    drogon::HttpRequestPtr req = req_obj.second;
-    client->sendRequest(
-        req,
-        [client = std::move(client),callback = std::move(callback), keyword] (
-            drogon::ReqResult req_result,
-            const drogon::HttpResponsePtr &resp
-        ) mutable
+    drogon::HttpRequestPtr req = build_request(keyword);
+    drogon::app().getLoop()->queueInLoop(
+        [req, callback = std::move(callback), keyword]() mutable
         {
-            std::pair<bool, dto::ContractSearchResp> result_pair = do_process_resp(req_result, resp, keyword);
-            if (result_pair.first)
-            {
-                callback(dto::JsonResult::ok(result_pair.second.to_json()));
-            }
-            else
-            {
-                callback(dto::JsonResult::fail(dto::ResultCode::InternalError));
-            }
-        }
-    );
+            drogon::HttpClientPtr client = async_contract_search_client();
+            client->sendRequest(
+                req,
+                [callback = std::move(callback), keyword] (
+                    drogon::ReqResult req_result,
+                    const drogon::HttpResponsePtr &resp
+                ) mutable
+                {
+                    std::pair<bool, dto::ContractSearchResp> result_pair = do_process_resp(req_result, resp, keyword);
+                    if (result_pair.first)
+                    {
+                        callback(dto::JsonResult::ok(result_pair.second.to_json()));
+                    }
+                    else
+                    {
+                        callback(dto::JsonResult::fail(dto::ResultCode::InternalError));
+                    }
+                });
+        });
 }
 
-std::pair<drogon::HttpClientPtr, drogon::HttpRequestPtr> service::ContractService::build_request_obj(const std::string& keyword)
+drogon::HttpClientPtr service::ContractService::async_contract_search_client()
 {
-    std::string url = get_contract_search_url();
-    auto client = drogon::HttpClient::newHttpClient(url);
+    static auto client = drogon::HttpClient::newHttpClient(
+        get_contract_search_url(),
+        drogon::app().getLoop()
+    );
+    return client;
+}
+
+drogon::HttpRequestPtr service::ContractService::build_request(const std::string& keyword)
+{
     auto req = drogon::HttpRequest::newHttpRequest();
     req->setMethod(drogon::Get);
     req->setPath(get_contract_search_path());
     req->setQueryParameter("q", keyword);
     req->setQueryParameter("token", get_contract_search_token());
 
-    return {client, req};
+    return req;
 }
 
 std::pair<bool, dto::ContractSearchResp> service::ContractService::do_process_resp(drogon::ReqResult req_result,

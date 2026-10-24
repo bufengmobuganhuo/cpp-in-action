@@ -6,17 +6,29 @@
 
 #include <drogon/HttpAppFramework.h>
 
-std::optional<drogon_model::stock_lab::User> repository::UserRepository::select_by_email(const std::string& email)
+void repository::UserRepository::select_by_email(
+    const std::string& email,
+    std::function<void(std::optional<drogon_model::stock_lab::User>)> on_success,
+    std::function<void(const drogon::orm::DrogonDbException&)> on_error)
 {
     auto mapper = make_mapper<drogon_model::stock_lab::User>();
-    std::vector<drogon_model::stock_lab::User> vector = mapper.findBy(
+    mapper.findBy(
         drogon::orm::Criteria(
             drogon_model::stock_lab::User::Cols::_email,
             drogon::orm::CompareOperator::EQ,
             email
-        )
+        ),
+        [on_success = std::move(on_success)](std::vector<drogon_model::stock_lab::User> users) mutable
+        {
+            if (users.empty())
+            {
+                on_success(std::nullopt);
+                return;
+            }
+            on_success(std::move(users.front()));
+        },
+        std::move(on_error)
     );
-    return vector.empty() ? std::nullopt : std::optional(vector[0]);
 }
 
 void repository::UserRepository::select_by_id(
@@ -42,8 +54,11 @@ void repository::UserRepository::select_by_id(
     );
 }
 
-void repository::UserRepository::insert(drogon_model::stock_lab::User& user)
+void repository::UserRepository::insert(
+    const drogon_model::stock_lab::User& user,
+    std::function<void(drogon_model::stock_lab::User)> on_success,
+    std::function<void(const drogon::orm::DrogonDbException&)> on_error)
 {
     auto mapper = make_mapper<drogon_model::stock_lab::User>();
-    mapper.insert(user);
+    mapper.insert(user, std::move(on_success), std::move(on_error));
 }

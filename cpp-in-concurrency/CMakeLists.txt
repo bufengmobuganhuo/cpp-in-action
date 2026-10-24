@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.3)
+cmake_minimum_required(VERSION 4.2.2)
 project(cpp_in_concurrency)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -13,7 +13,9 @@ add_executable(cpp_in_concurrency main.cpp
         chapter04/ThreadSafeQueue.cpp
         chapter04/include/ThreadSafeQueue.h
         chapter05/SpinLockMutex.cpp
-)
+        chapter05/MemoryOrderSeqCst.cpp
+        chapter05/MemoryOrderAcqRel.cpp
+        chapter05/MemoryOrderAcqAndRel.cpp)
 
 # 每章一个可执行文件：自动收集 ${name}/ 下的所有 .cpp 和 ${name}/include/ 下的 .h
 # 新章节只需创建目录并添加一行 add_chapter(chapterXX)

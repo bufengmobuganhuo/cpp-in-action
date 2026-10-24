@@ -22,7 +22,10 @@ namespace service
         service::MailService mail_service_;
         util::JwtUtil jwt_util_;
         int generate_verify_code();
-        int64_t register_if_necessary(const std::string& email);
+        void register_if_necessary(
+            const std::string& email,
+            std::function<void(int64_t)> on_success,
+            std::function<void(const drogon::orm::DrogonDbException&)> on_error);
     public:
         using ResponseCallback = std::function<void(const drogon::HttpResponsePtr &)>;
         void send_verify_code(const dto::LoginDto &login_dto, ResponseCallback callback);

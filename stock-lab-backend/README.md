@@ -55,13 +55,13 @@ Resend Email API
 ```text
 DB_HOST
 DB_NAME
-DATASOURCE_USERNAME
-DATASOURCE_PASSWORD
+DB_USERNAME
+DB_PASSWORD
 FINNHUB_TOKEN
 MAIL_API_KEY
 ```
 
-注意：`config/config.prod.json` 当前读取的是 `DATASOURCE_USERNAME` 和 `DATASOURCE_PASSWORD`。如果你本地 `.env` 里使用的是 `DB_USERNAME`、`DB_PASSWORD`，生产部署时需要额外补充 `DATASOURCE_USERNAME`、`DATASOURCE_PASSWORD`，或统一修改配置文件里的变量名。
+`config/config.prod.json` 使用 `DB_USERNAME` 和 `DB_PASSWORD`，`.env` 中的变量名需与之保持一致。
 
 不要把真实密钥提交到 Git。生产服务器上使用 `.env` 保存，或改为 systemd `EnvironmentFile` 管理。
 
@@ -128,7 +128,9 @@ sudo systemctl enable --now nginx
 
 ## 三、安装 C++ 依赖
 
-推荐使用 vcpkg 管理 Drogon、jwt-cpp、Boost、croncpp 等依赖，避免 Amazon Linux 系统包版本差异。
+推荐使用 vcpkg 管理 jwt-cpp、Boost、croncpp、JsonCpp、MariaDB Connector/C、OpenSSL 等基础依赖。
+
+重要：Drogon 和它的 Trantor 子模块一起从源码安装到 `$HOME/drogon-install`。编译后端时必须同时使用这套安装中的 `libdrogon.a` 和 `libtrantor.a`；不要让 vcpkg 的 Trantor 混入链接。当前仓库的 `models/` 代码还依赖较新的 `drogon_ctl` 生成结果。
 
 ### 1. 安装 vcpkg
 
@@ -149,7 +151,7 @@ vcpkg package management program version ...
 
 ### 2. 小内存 EC2 先增加 swap
 
-如果服务器内存只有 1GB 左右，vcpkg 编译 Drogon、OpenSSL 等依赖时可能触发 OOM，表现为编译中断、SSH 卡死或实例短时间连不上。建议先增加 4GB swap：
+如果服务器内存只有 1GB 左右，编译 Drogon、OpenSSL 等依赖时可能触发 OOM，表现为编译中断、SSH 卡死或实例短时间连不上。建议先增加 4GB swap：
 
 ```bash
 free -h
@@ -170,13 +172,13 @@ swapon --show
 建议在 `tmux` 中执行耗时编译，避免 SSH 断开导致命令中断：
 
 ```bash
-tmux new -s vcpkg-build
+tmux new -s stock-lab-build
 ```
 
 如果 SSH 断开，重新登录后恢复会话：
 
 ```bash
-tmux attach -t vcpkg-build
+tmux attach -t stock-lab-build
 ```
 
 ### 3. 安装项目依赖
@@ -197,20 +199,90 @@ sudo dnf install -y kernel-headers perl-core perl-IPC-Cmd
 
 ```bash
 VCPKG_DISABLE_METRICS=1 VCPKG_MAX_CONCURRENCY=1 ~/vcpkg/vcpkg install \
-  'drogon[ctl,mysql]:x64-linux' \
   jwt-cpp:x64-linux \
   boost-headers:x64-linux \
   boost-multiprecision:x64-linux \
-  croncpp:x64-linux
+  croncpp:x64-linux \
+  jsoncpp:x64-linux \
+  libmariadb:x64-linux \
+  openssl:x64-linux \
+  zlib:x64-linux \
+  brotli:x64-linux \
+  c-ares:x64-linux \
+  libuuid:x64-linux
 ```
 
 安装完成后确认关键依赖存在：
 
 ```bash
-~/vcpkg/vcpkg list | grep -E 'drogon|jwt-cpp|boost-multiprecision|croncpp'
-find ~/vcpkg/installed -iname '*Drogon*Config*.cmake' -o -iname '*drogon*config*.cmake'
-find ~/vcpkg -type f -name drogon_ctl
+~/vcpkg/vcpkg list | grep -E 'jwt-cpp|boost-multiprecision|croncpp|jsoncpp|libmariadb|openssl'
+find ~/vcpkg/installed/x64-linux -path '*jsoncpp*' | sort
 ```
+
+### 4. 源码安装 Drogon
+
+在服务器上从源码安装 Drogon，并把安装结果固定到 `$HOME/drogon-install`：
+
+```bash
+cd ~
+git clone https://github.com/drogonframework/drogon.git
+cd ~/drogon
+git submodule update --init --recursive
+
+# vcpkg 的 jsoncpp 库名是 libjsoncpp.a；Drogon 源码构建可能链接 -ljsoncpp_lib。
+# 创建兼容软链接，避免链接 drogon_ctl 时报 cannot find -ljsoncpp_lib。
+ln -sf $HOME/vcpkg/installed/x64-linux/lib/libjsoncpp.a \
+       $HOME/vcpkg/installed/x64-linux/lib/libjsoncpp_lib.a
+
+cmake -S . -B build \
+  -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
+  -DVCPKG_TARGET_TRIPLET=x64-linux \
+  -DCMAKE_INSTALL_PREFIX=$HOME/drogon-install \
+  -DCMAKE_INSTALL_LIBDIR=lib64 \
+  -DINSTALL_LIB_DIR=lib64 \
+  -DINSTALL_DROGON_CMAKE_DIR=lib64/cmake/Drogon \
+  -DINSTALL_TRANTOR_CMAKE_DIR=lib64/cmake/Trantor \
+  -DUSE_SUBMODULE=ON \
+  -DBUILD_SHARED_LIBS=OFF \
+  -DBUILD_ORM=ON \
+  -DBUILD_MYSQL=ON \
+  -DBUILD_CTL=ON \
+  -DCMAKE_PREFIX_PATH="$HOME/vcpkg/installed/x64-linux" \
+  -Djsoncpp_DIR=$HOME/vcpkg/installed/x64-linux/share/jsoncpp \
+  -DCMAKE_CXX_FLAGS="-I$HOME/vcpkg/installed/x64-linux/include" \
+  -DCMAKE_EXE_LINKER_FLAGS="-L$HOME/vcpkg/installed/x64-linux/lib"
+
+grep '^#define USE_MYSQL 1' build/drogon/config.h
+```
+
+`grep` 应输出 `#define USE_MYSQL 1`。如果没有输出，先检查 MariaDB Connector/C 是否被 CMake 找到，再继续构建和安装。
+
+```bash
+cmake --build build -j1
+cmake --install build
+```
+
+编译期间类似下面的 deprecated warning 可以忽略：
+
+```text
+CT_APPLICATION_X_JAVASCRIPT is deprecated: use CT_TEXT_JAVASCRIPT
+```
+
+安装完成后确认 Drogon、同源 Trantor 和 `drogon_ctl` 均已安装到同一前缀：
+
+```bash
+ls -l $HOME/drogon-install/lib64/cmake/Drogon/DrogonConfig.cmake \
+      $HOME/drogon-install/lib64/cmake/Trantor/TrantorConfig.cmake \
+      $HOME/drogon-install/lib64/libdrogon.a \
+      $HOME/drogon-install/lib64/libtrantor.a \
+      $HOME/drogon-install/bin/drogon_ctl
+grep -R "utf8Length" -n $HOME/drogon-install/include/drogon/utils/Utilities.h
+$HOME/drogon-install/bin/drogon_ctl version
+```
+
+若 `ls` 报文件不存在，用 `find $HOME/drogon-install -name DrogonConfig.cmake -o -name TrantorConfig.cmake -o -name libdrogon.a -o -name libtrantor.a` 核对实际位置。若已有安装使用 `lib` 而不是 `lib64`，后续 `Drogon_DIR` 和 `Trantor_DIR` 应一起改为对应的 `lib/cmake/...` 路径。
 
 ## 四、部署后端代码
 
@@ -291,10 +363,6 @@ STOCK_LAB_ENV=prod
 
 DB_HOST=your-mysql-host
 DB_NAME=your-database-name
-DATASOURCE_USERNAME=your-database-user
-DATASOURCE_PASSWORD=your-database-password
-
-# 可选：如果开发环境 config.dev.json 仍使用 DB_USERNAME / DB_PASSWORD，可同步保留
 DB_USERNAME=your-database-user
 DB_PASSWORD=your-database-password
 
@@ -320,33 +388,59 @@ ls -la config/config.json config/config.prod.json
 
 ## 六、编译后端
 
-在服务器项目目录执行：
+在服务器项目根目录执行。显式指定源码安装的 Drogon 和 Trantor；vcpkg 只提供其他依赖。已有 `build` 目录时，下面的 `-D` 参数会更新缓存中的路径，无需删除整个构建目录。
 
 ```bash
 cd /opt/stock-lab/backend/current
 
-# 如果 CMake 配置阶段曾失败，先删除旧缓存再重新配置
-rm -rf build
+# 确认同一安装前缀中同时有 Drogon 和 Trantor
+ls -l $HOME/drogon-install/lib64/cmake/Drogon/DrogonConfig.cmake \
+      $HOME/drogon-install/lib64/cmake/Trantor/TrantorConfig.cmake \
+      $HOME/drogon-install/lib64/libdrogon.a \
+      $HOME/drogon-install/lib64/libtrantor.a \
+      $HOME/drogon-install/bin/drogon_ctl
+```
 
+这五个文件都应存在。若有文件不存在，先检查安装步骤；若已有安装使用 `lib` 而不是 `lib64`，请按实际路径同时调整下方的 `Drogon_DIR` 和 `Trantor_DIR`。
+
+```bash
+# 如果 vcpkg 里仍安装过旧版 Drogon，源码版 include 需要排在前面。
+# CMAKE_CXX_FLAGS 里的 -I$HOME/drogon-install/include 用于避免误用 vcpkg 旧头文件。
 cmake -S . -B build \
   -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
   -DVCPKG_TARGET_TRIPLET=x64-linux \
-  -DDROGON_CTL_COMMAND=$HOME/vcpkg/installed/x64-linux/tools/drogon/drogon_ctl
+  -DDrogon_DIR:PATH=$HOME/drogon-install/lib64/cmake/Drogon \
+  -DTrantor_DIR:PATH=$HOME/drogon-install/lib64/cmake/Trantor \
+  -DDROGON_CTL_COMMAND=$HOME/drogon-install/bin/drogon_ctl \
+  -DCMAKE_PREFIX_PATH="$HOME/drogon-install;$HOME/vcpkg/installed/x64-linux" \
+  -DCMAKE_CXX_FLAGS="-I$HOME/drogon-install/include -I$HOME/vcpkg/installed/x64-linux/include" \
+  -DCMAKE_EXE_LINKER_FLAGS="-L$HOME/vcpkg/installed/x64-linux/lib"
 
-cmake --build build -j1
+cmake --build build --target stock-lab-backend -j1
 ```
 
-编译完成后确认二进制存在：
+如果这套安装实际使用 `lib` 目录，把上面两个参数一起改成：
 
 ```bash
+-DDrogon_DIR:PATH=$HOME/drogon-install/lib/cmake/Drogon
+-DTrantor_DIR:PATH=$HOME/drogon-install/lib/cmake/Trantor
+```
+
+编译完成后，在**项目根目录**检查链接命令和二进制：
+
+```bash
+ninja -C build -t commands stock-lab-backend | tail -n 1 | tr ' ' '\n' | grep -E '/lib(drogon|trantor)\.a'
+grep -E '^(Drogon_DIR|Trantor_DIR):' build/CMakeCache.txt
 ls -lh build/stock-lab-backend
 ```
 
+预期两个 `.a` 文件都位于 `$HOME/drogon-install/lib64/`（或同一安装前缀的 `lib/`）。如果已进入 `build` 目录，Ninja 命令应改为 `ninja -t commands stock-lab-backend`，不要再加 `-C build`。只要 `libtrantor.a` 仍来自 vcpkg，就不要继续启动验证，先按“十四、常见问题”中的混用库排查步骤重新配置。
+
 ## 七、手动启动验证
 
-首次部署建议先手动启动，确认配置、数据库和外部 API 没有问题。
+首次部署先手动启动，再按从简单到完整的顺序验证 HTTP、数据库和邮件链路。
 
 重要：当前邮件模板路径为 `../templates/email/...`，请在 `build` 目录启动后端。
 
@@ -358,19 +452,32 @@ cd /opt/stock-lab/backend/current/build
 另开一个 SSH 窗口验证：
 
 ```bash
-curl -i http://127.0.0.1:8088/api/auth/login \
+# 先验证 HTTP 监听和路由；404 响应也是正常结果
+curl -i http://127.0.0.1:8088/__probe__
+
+# 参数校验，不会查询数据库或发送邮件
+curl -i http://127.0.0.1:8088/api/auth/verifyCode \
   -X POST \
   -H 'Content-Type: application/json' \
-  -d '{}'
+  -d '{"email":"18681820448@163.com"}'
+```
+A
+上述请求均能返回 HTTP 响应且进程保持运行，说明基础 HTTP 链路可用。要验证白名单查询和发送邮件，再把下面的地址换成**已加入白名单且由你控制**的邮箱：
+
+```bash
+curl -i http://127.0.0.1:8088/api/auth/verifyCode \
+  -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"your-invited-email@example.com"}'
 ```
 
-能收到 JSON 响应即可说明服务已启动。即使参数不完整返回业务错误，也说明 Nginx 前的后端进程可访问。
+只有收到预期成功响应并确认邮件到达后，才能认为数据库与邮件链路也通过验证；股票查询、交易和定时任务仍需分别验证。
 
 如果启动失败，优先检查：
 
 ```bash
 cd /opt/stock-lab/backend/current
-grep -E '^(PROFILES_ACTIVE|STOCK_LAB_ENV|DB_HOST|DB_NAME|DATASOURCE_USERNAME|DATASOURCE_PASSWORD|FINNHUB_TOKEN|MAIL_API_KEY)=' .env \
+grep -E '^(PROFILES_ACTIVE|STOCK_LAB_ENV|DB_HOST|DB_NAME|DB_USERNAME|DB_PASSWORD|FINNHUB_TOKEN|MAIL_API_KEY)=' .env \
   | sed -E 's/=.*/=***MASKED***/'
 ls -la config/
 ls -la templates/email/
@@ -491,11 +598,13 @@ sudo systemctl reload nginx
 ### 3. 验证 API 代理
 
 ```bash
-curl -i http://your-domain.com/api/auth/login \
+curl -i http://your-domain.com/api/auth/verifyCode \
   -X POST \
   -H 'Content-Type: application/json' \
   -d '{}'
 ```
+
+这里先验证 Nginx 到后端的代理链路。需要验证数据库和邮件时，参照“七、手动启动验证”使用已加入白名单的邮箱。
 
 ## 十、部署 Flutter 前端
 
@@ -577,10 +686,20 @@ cmake -S . -B build \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
   -DVCPKG_TARGET_TRIPLET=x64-linux \
-  -DDROGON_CTL_COMMAND=$HOME/vcpkg/installed/x64-linux/tools/drogon/drogon_ctl
+  -DDrogon_DIR:PATH=$HOME/drogon-install/lib64/cmake/Drogon \
+  -DTrantor_DIR:PATH=$HOME/drogon-install/lib64/cmake/Trantor \
+  -DDROGON_CTL_COMMAND=$HOME/drogon-install/bin/drogon_ctl \
+  -DCMAKE_PREFIX_PATH="$HOME/drogon-install;$HOME/vcpkg/installed/x64-linux" \
+  -DCMAKE_CXX_FLAGS="-I$HOME/drogon-install/include -I$HOME/vcpkg/installed/x64-linux/include" \
+  -DCMAKE_EXE_LINKER_FLAGS="-L$HOME/vcpkg/installed/x64-linux/lib"
 
-cmake --build build -j1
+cmake --build build --target stock-lab-backend -j1
+ninja -C build -t commands stock-lab-backend | tail -n 1 | tr ' ' '\n' | grep -E '/lib(drogon|trantor)\.a'
+```
 
+确认上面的链接检查输出中两个库均位于 `$HOME/drogon-install/lib64/`，再重启服务。若安装目录使用 `lib`，同样把 `Drogon_DIR`、`Trantor_DIR` 一起改为 `lib/cmake/...`。
+
+```bash
 sudo systemctl restart stock-lab-backend
 sudo systemctl status stock-lab-backend --no-pager
 ```
@@ -604,7 +723,7 @@ cd /opt/stock-lab/backend/current
 git log --oneline -5
 git checkout <previous-commit>
 
-cmake --build build -j1
+cmake --build build --target stock-lab-backend -j1
 sudo systemctl restart stock-lab-backend
 ```
 
@@ -705,6 +824,16 @@ vcpkg 依赖或动态库路径异常
 sudo journalctl -u stock-lab-backend -n 200 --no-pager
 ```
 
+如果服务在任意 HTTP 请求到来时崩溃，并出现 `Bad file descriptor`、`It is forbidden to run loop on threads other than event-loop thread`，先检查 Drogon 和 Trantor 是否链接自同一套源码安装。在项目根目录运行：
+
+```bash
+cd /opt/stock-lab/backend/current
+grep -E '^(Drogon_DIR|Trantor_DIR):' build/CMakeCache.txt
+ninja -C build -t commands stock-lab-backend | tail -n 1 | tr ' ' '\n' | grep -E '/lib(drogon|trantor)\.a'
+```
+
+若 `libdrogon.a` 位于 `$HOME/drogon-install/lib64/`，而 `libtrantor.a` 位于 `$HOME/vcpkg/installed/x64-linux/lib/`，按“六、编译后端”重新配置并编译，使两个库都指向 `$HOME/drogon-install/lib64/`。若路径一致但仍崩溃，再用 `gdb` 获取堆栈继续排查。
+
 ### 4. 远程编译依赖问题
 
 #### `curl-minimal` 和 `curl` 冲突
@@ -741,17 +870,39 @@ perl -MIPC::Cmd -e 'print "IPC::Cmd OK\n"'
 Could not find a package configuration file provided by "Drogon"
 ```
 
-确认 Drogon 是否装到当前 vcpkg：
+确认源码版 Drogon 和它配套的 Trantor 是否都已安装：
 
 ```bash
-~/vcpkg/vcpkg list | grep -i drogon
-find ~/vcpkg/installed -iname '*Drogon*Config*.cmake' -o -iname '*drogon*config*.cmake'
+find $HOME/drogon-install -name DrogonConfig.cmake
+find $HOME/drogon-install -name TrantorConfig.cmake
 ```
 
-如果没有输出，重新安装：
+如果任意一个没有输出，回到“三、安装 C++ 依赖 / 源码安装 Drogon”检查 `USE_SUBMODULE=ON`、安装前缀和安装步骤。
+
+如果输出路径是：
 
 ```bash
-VCPKG_DISABLE_METRICS=1 VCPKG_MAX_CONCURRENCY=1 ~/vcpkg/vcpkg install 'drogon[ctl,mysql]:x64-linux'
+/home/ec2-user/drogon-install/lib64/cmake/Drogon/DrogonConfig.cmake
+```
+
+后端 CMake 参数应同时使用：
+
+```bash
+-DDrogon_DIR:PATH=$HOME/drogon-install/lib64/cmake/Drogon
+-DTrantor_DIR:PATH=$HOME/drogon-install/lib64/cmake/Trantor
+```
+
+如果输出路径是：
+
+```bash
+/home/ec2-user/drogon-install/lib/cmake/Drogon/DrogonConfig.cmake
+```
+
+后端 CMake 参数应同时使用：
+
+```bash
+-DDrogon_DIR:PATH=$HOME/drogon-install/lib/cmake/Drogon
+-DTrantor_DIR:PATH=$HOME/drogon-install/lib/cmake/Trantor
 ```
 
 #### 找不到 `drogon_ctl`
@@ -765,19 +916,19 @@ Could not find DROGON_CTL_COMMAND using the following names: drogon_ctl
 查找工具路径：
 
 ```bash
-find ~/vcpkg -type f -name drogon_ctl
+find $HOME/drogon-install -name drogon_ctl
 ```
 
-如果存在 `/home/ec2-user/vcpkg/installed/x64-linux/tools/drogon/drogon_ctl`，CMake 配置时显式指定：
+如果存在 `/home/ec2-user/drogon-install/bin/drogon_ctl`，CMake 配置时显式指定：
 
 ```bash
--DDROGON_CTL_COMMAND=$HOME/vcpkg/installed/x64-linux/tools/drogon/drogon_ctl
+-DDROGON_CTL_COMMAND=$HOME/drogon-install/bin/drogon_ctl
 ```
 
-如果找不到，重新安装带 `ctl` feature 的 Drogon：
+如果找不到，重新执行源码安装 Drogon，并确认源码编译时包含：
 
 ```bash
-VCPKG_DISABLE_METRICS=1 VCPKG_MAX_CONCURRENCY=1 ~/vcpkg/vcpkg install 'drogon[ctl,mysql]:x64-linux'
+-DBUILD_CTL=ON
 ```
 
 #### 找不到 Boost Multiprecision
@@ -819,17 +970,134 @@ error: 'condition_variable' in namespace 'std' does not name a type
 
 ```bash
 cd /opt/stock-lab/backend/current
-rm -rf build
 cmake -S . -B build \
   -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake \
   -DVCPKG_TARGET_TRIPLET=x64-linux \
-  -DDROGON_CTL_COMMAND=$HOME/vcpkg/installed/x64-linux/tools/drogon/drogon_ctl
+  -DDrogon_DIR:PATH=$HOME/drogon-install/lib64/cmake/Drogon \
+  -DTrantor_DIR:PATH=$HOME/drogon-install/lib64/cmake/Trantor \
+  -DDROGON_CTL_COMMAND=$HOME/drogon-install/bin/drogon_ctl \
+  -DCMAKE_PREFIX_PATH="$HOME/drogon-install;$HOME/vcpkg/installed/x64-linux" \
+  -DCMAKE_CXX_FLAGS="-I$HOME/drogon-install/include -I$HOME/vcpkg/installed/x64-linux/include" \
+  -DCMAKE_EXE_LINKER_FLAGS="-L$HOME/vcpkg/installed/x64-linux/lib"
 cmake --build build -j1
 ```
 
-### 6. 邮件发送失败
+### 6. 编译时报 `utf8Length` 不是 `drogon::utils` 成员
+
+如果报：
+
+```text
+error: 'utf8Length' is not a member of 'drogon::utils'
+```
+
+说明当前编译实际使用了旧版 Drogon 头文件。常见原因是 vcpkg 的旧 Drogon include 路径排在源码安装的 Drogon 前面。
+
+先确认源码版 Drogon 头文件包含该函数：
+
+```bash
+grep -R "utf8Length" -n $HOME/drogon-install/include/drogon/utils/Utilities.h
+grep -R "utf8Length" -n $HOME/vcpkg/installed/x64-linux/include/drogon/utils/Utilities.h
+```
+
+如果第一条有输出、第二条没有输出，重新配置后端时必须包含：
+
+```bash
+-DDrogon_DIR:PATH=$HOME/drogon-install/lib64/cmake/Drogon
+-DTrantor_DIR:PATH=$HOME/drogon-install/lib64/cmake/Trantor
+-DDROGON_CTL_COMMAND=$HOME/drogon-install/bin/drogon_ctl
+-DCMAKE_CXX_FLAGS="-I$HOME/drogon-install/include -I$HOME/vcpkg/installed/x64-linux/include"
+```
+
+如果仍然误用 vcpkg 旧头文件，可以移除 vcpkg Drogon，保留其它 vcpkg 依赖：
+
+```bash
+cd $HOME/vcpkg
+./vcpkg remove drogon:x64-linux
+```
+
+然后回项目目录重新执行“六、编译后端”。
+
+### 7. 源码编译 Drogon 时 JsonCpp 相关错误
+
+如果源码编译 Drogon 时报：
+
+```text
+fatal error: json/json.h: No such file or directory
+```
+
+先确认 vcpkg 里有头文件：
+
+```bash
+ls -l $HOME/vcpkg/installed/x64-linux/include/json/json.h
+```
+
+重新配置 Drogon 时加入：
+
+```bash
+-Djsoncpp_DIR=$HOME/vcpkg/installed/x64-linux/share/jsoncpp
+-DCMAKE_CXX_FLAGS="-I$HOME/vcpkg/installed/x64-linux/include"
+```
+
+如果链接 `drogon_ctl` 时报：
+
+```text
+/usr/bin/ld: cannot find -ljsoncpp_lib
+```
+
+创建兼容软链接，并重新配置/编译 Drogon：
+
+```bash
+ln -sf $HOME/vcpkg/installed/x64-linux/lib/libjsoncpp.a \
+       $HOME/vcpkg/installed/x64-linux/lib/libjsoncpp_lib.a
+```
+
+源码编译 Drogon 的完整命令见“三、安装 C++ 依赖 / 源码安装 Drogon”。
+
+### 8. 启动时报 MySQL TLS/SSL 错误
+
+如果启动后端时报：
+
+```text
+TLS/SSL error: SSL is required, but the server does not support it
+Failed to mysql_real_connect()
+```
+
+先不要直接用 shell 里的 `$DB_HOST` 测试，因为项目会由 `ConfigLoader` 自动读取 `.env`，shell 不会自动加载这些变量。先在服务器项目根目录加载 `.env`：
+
+```bash
+cd /opt/stock-lab/backend/current
+
+grep -nE '^(DB_HOST|DB_NAME|DB_USERNAME|DB_PASSWORD|PROFILES_ACTIVE|STOCK_LAB_ENV)=' .env \
+  | sed -E 's/(DB_PASSWORD)=.*/\1=<hidden>/'
+
+set -a
+source .env
+set +a
+```
+
+再测试真实数据库连接：
+
+```bash
+mysql --ssl=0 \
+  -h "$DB_HOST" \
+  -P 3306 \
+  -u "$DB_USERNAME" \
+  -p"$DB_PASSWORD" \
+  "$DB_NAME" \
+  -e "select 1;"
+```
+
+结果判断：
+
+```text
+mysql --ssl=0 能连上：数据库允许非 SSL，问题多半在 Drogon/MariaDB client SSL 默认行为。
+仍报 SSL 错误：检查 MySQL 服务端或账号 SSL 策略。
+报 Access denied：检查 .env 中用户名、密码、库名和 DB_HOST 是否正确。
+```
+
+### 9. 邮件发送失败
 
 检查：
 
@@ -840,7 +1108,7 @@ templates/email/code.html 是否存在
 systemd WorkingDirectory 是否为 /opt/stock-lab/backend/current/build
 ```
 
-### 7. 股票查询失败
+### 10. 股票查询失败
 
 检查：
 

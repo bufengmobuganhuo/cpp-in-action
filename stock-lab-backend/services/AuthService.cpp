@@ -67,12 +67,17 @@ void service::AuthService::verify_code(const dto::LoginDto& login_dto, ResponseC
 {
     const std::string email = login_dto.email_;
     const std::string verify_code = login_dto.verify_code_;
-    const auto callback_ptr = std::make_shared<ResponseCallback>(callback);
+    const auto callback_ptr = std::make_shared<ResponseCallback>(std::move(callback));
+    const auto on_db_error = [callback_ptr](const drogon::orm::DrogonDbException& e)
+    {
+        LOG_ERROR << "failed to verify code: " << e.base().what();
+        (*callback_ptr)(dto::JsonResult::fail(dto::ResultCode::InternalError));
+    };
     email_whitelist_repository_.exists_by_email(
         email,
-        [this, email, verify_code, callback_ptr](bool exits)
+        [this, email, verify_code, callback_ptr, on_db_error](bool exists)
         {
-            if (!exits)
+            if (!exists)
             {
                 (*callback_ptr)(dto::JsonResult::fail(dto::ResultCode::EmailNotInvited));
                 return;
@@ -88,25 +93,25 @@ void service::AuthService::verify_code(const dto::LoginDto& login_dto, ResponseC
                 (*callback_ptr)(dto::JsonResult::fail(dto::ResultCode::VerifyCodeMismatch));
                 return;
             }
-            int64_t user_id = register_if_necessary(email);
-            const auto expiration = std::chrono::system_clock::now() + std::chrono::milliseconds(util::JwtUtil::k_expiration_time_mills);
+            register_if_necessary(
+                email,
+                [this, callback_ptr](int64_t user_id)
+                {
+                    const auto expiration = std::chrono::system_clock::now() +
+                        std::chrono::milliseconds(util::JwtUtil::k_expiration_time_mills);
+                    const std::string token = jwt_util_.create(user_id, expiration);
+                    const int64_t expire_at = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        expiration.time_since_epoch()
+                    ).count();
 
-            std::string token = jwt_util_.create(user_id, expiration);
-
-            const int64_t expire_at = std::chrono::duration_cast<std::chrono::milliseconds>(
-                expiration.time_since_epoch()
-            ).count();
-
-            dto::LoginRespDto login_resp_dto;
-            login_resp_dto.token_ = token;
-            login_resp_dto.expire_at_ = expire_at;
-            (*callback_ptr)(dto::JsonResult::ok(login_resp_dto.to_json()));
+                    dto::LoginRespDto login_resp_dto;
+                    login_resp_dto.token_ = token;
+                    login_resp_dto.expire_at_ = expire_at;
+                    (*callback_ptr)(dto::JsonResult::ok(login_resp_dto.to_json()));
+                },
+                on_db_error);
         },
-        [callback_ptr](const drogon::orm::DrogonDbException &e)
-        {
-            LOG_ERROR << "failed to verify code: " << e.base().what();
-            (*callback_ptr)(dto::JsonResult::fail(dto::ResultCode::InternalError));
-        }
+        on_db_error
     );
 }
 
@@ -117,18 +122,32 @@ int service::AuthService::generate_verify_code()
     return distribution(generator);
 }
 
-int64_t service::AuthService::register_if_necessary(const std::string& email)
+void service::AuthService::register_if_necessary(
+    const std::string& email,
+    std::function<void(int64_t)> on_success,
+    std::function<void(const drogon::orm::DrogonDbException&)> on_error)
 {
-    std::optional<drogon_model::stock_lab::User> optional = user_repository_.select_by_email(email);
-    if (optional.has_value())
-    {
-        return optional->getValueOfId();
-    }
+    user_repository_.select_by_email(
+        email,
+        [this, email, on_success, on_error](std::optional<drogon_model::stock_lab::User> user)
+        {
+            if (user.has_value())
+            {
+                on_success(user->getValueOfId());
+                return;
+            }
 
-    const int64_t user_id = util::Snowflake::instance().next_id();
-    drogon_model::stock_lab::User user;
-    user.setId(user_id);
-    user.setEmail(email);
-    user_repository_.insert(user);
-    return user_id;
+            const int64_t user_id = util::Snowflake::instance().next_id();
+            drogon_model::stock_lab::User new_user;
+            new_user.setId(user_id);
+            new_user.setEmail(email);
+            user_repository_.insert(
+                new_user,
+                [on_success, user_id](drogon_model::stock_lab::User)
+                {
+                    on_success(user_id);
+                },
+                on_error);
+        },
+        on_error);
 }

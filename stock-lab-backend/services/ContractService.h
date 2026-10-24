@@ -25,7 +25,8 @@ namespace service
         static  std::string get_contract_search_url();
         static  std::string get_contract_search_path();
         static std::string get_contract_search_token();
-        static  std::pair<drogon::HttpClientPtr, drogon::HttpRequestPtr> build_request_obj(const std::string& keyword);
+        static drogon::HttpClientPtr async_contract_search_client();
+        static drogon::HttpRequestPtr build_request(const std::string& keyword);
         static  std::pair<bool, dto::ContractSearchResp> do_process_resp(drogon::ReqResult req_result,
                                                                  const drogon::HttpResponsePtr& resp,
                                                                  const std::string& keyword);
